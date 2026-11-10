@@ -100,11 +100,16 @@ tests/
 `accentFromPaint()` keeps the paint's hue and lifts it into a lightness band that reads on near-black. Achromatic paints (black, white, silver, grey) get a cool titanium accent instead of an invisible grey. `AccentScope` sets the CSS variables, so a vehicle page takes that car's colour even inside a profile with a different accent. Users can switch to a custom accent in Settings.
 
 ### 3D vehicles (hybrid)
-1. **Parametric model** (always available): built in-browser from the body style plus `model_config` (paint and finish, wheel design/size/colour, calipers, ride height, tint, spoiler/wing, splitter, diffuser, skirts, exhaust layout and finish, stripes). Every part is a clickable mesh.
-2. **Library model**: Sketchfab search (downloadable car models), GLB import into your storage, licence attribution shown.
-3. **AI generation**: Meshy multi-image-to-3D from your front ¾, side and rear ¾ photos; progress is polled; the result is labelled *"AI-generated approximation, not a scan"*.
+1. **Realistic studio model** (default): a photoreal, high-detail sports car (`public/models/studio-car.glb`) recoloured live with the vehicle's paint and finish (gloss, metallic, satin or matte clearcoat), rim colour, calipers, glass tint and ride height. Carbon aero parts (lip, ducktail, wing, GT wing, splitter, diffuser, skirts) and exhaust tips are placed on the real bodywork by raycasting. Every part is clickable. It is labelled a **stand-in**, because it shows your spec on a generic body, not your car's exact shape.
+2. **Parametric model**: generated from the body style (coupe, sedan, hatch, wagon, SUV, truck). Less realistic, but its proportions follow your car type, and it supports wheel designs and stripes.
+3. **Library model**: Sketchfab search (downloadable car models), GLB import into your storage, licence attribution shown. This is how you get your *exact* car.
+4. **AI generation**: Meshy multi-image-to-3D from your front ¾, side and rear ¾ photos; progress is polled; the result is labelled *"AI-generated approximation, not a scan"*.
 
 Imported and generated models need **owner approval** and show *pending review* until then. For GLB models, mods appear as clickable hotspots projected from anchor points. Non-visual mods (tune, intake, turbo, interior) always appear as hotspots.
+
+**Rendering:** a photographic studio HDRI (Poly Haven, CC0, bundled via `@pmndrs/assets`, so there are no runtime downloads) plus softbox light-formers, AgX tone mapping, soft contact shadows, bloom, vignette and SMAA. Desktops also get a blurred mirror floor; phones and low-core devices get a lighter pipeline automatically (`quality="auto"`).
+
+**Studio model licence:** "Car Concept" from the Khronos glTF Sample Assets, **CC BY 4.0**, itself derived from a public-domain model by Unity Fan. Khronos logos, which the licence excludes, have been removed. The credit is shown in the viewer, and details are in `public/models/ATTRIBUTION.md`.
 
 ### AI identification
 `/api/ai/identify` sends up to 6 downscaled photos to Claude (`claude-opus-5-5`, adaptive thinking, zod-validated structured output). It returns a year *range*, make/model/trim/generation, body style, paint hex and finish, visual parameters for the 3D model, and suspected mods with evidence and confidence. Low-confidence mods start unchecked. Every AI-filled field is flagged "AI · verify" in the form.

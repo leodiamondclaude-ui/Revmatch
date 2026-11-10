@@ -4,9 +4,9 @@ export type PartId =
   | "wrap" | "wheels" | "brakes" | "spoiler" | "splitter" | "diffuser" | "body_kit" | "exhaust" | "tint" | "suspension" | "lighting";
 
 export const VIEWS = {
-  front3q: { label: "Front ¾", pos: [5.2, 1.7, 4.2] },
-  rear3q: { label: "Rear ¾", pos: [-5.2, 1.7, 4.2] },
-  side: { label: "Profile", pos: [0, 1.1, 7.2] },
+  front3q: { label: "Front ¾", pos: [4.7, 1.35, 3.8] },
+  rear3q: { label: "Rear ¾", pos: [-4.7, 1.45, 3.8] },
+  side: { label: "Profile", pos: [0, 1.0, 6.6] },
   front: { label: "Front", pos: [7, 1.2, 0] },
   rear: { label: "Rear", pos: [-7, 1.2, 0] },
   top: { label: "Top", pos: [0.01, 8.5, 0.01] },
@@ -25,8 +25,10 @@ export const PART_LABEL: Record<string, string> = {
 };
 
 
-export const DEFAULT_CONFIG: Required<Omit<ModelConfig, "stripeColor" | "roofColor">> & Pick<ModelConfig, "stripeColor" | "roofColor"> = {
+export const DEFAULT_CONFIG: Required<Omit<ModelConfig, "stripeColor" | "roofColor" | "representation">> & Pick<ModelConfig, "stripeColor" | "roofColor" | "representation"> = {
   paint: "#b8bcc0", finish: "metallic", wheelColor: "#2a2c30", wheelStyle: "five_spoke", wheelSize: 18,
   caliperColor: "#c8102e", rideHeight: 0, spoiler: "none", splitter: false, diffuser: false, sideSkirts: false,
   exhaust: "dual", exhaustFinish: "chrome", tint: 0.35, stripeColor: null, stripe: "none", roofColor: null,
 };
+
+export const STUDIO_CAR_CREDIT = "Studio base model: “Car Concept”, Khronos glTF Sample Assets (CC BY 4.0), derived from a public-domain model by Unity Fan.";

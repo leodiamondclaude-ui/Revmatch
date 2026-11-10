@@ -40,16 +40,16 @@ export function ModelStatus({ vehicle }: { vehicle: Vehicle }) {
     );
   }
   if (vehicle.model_status === "failed") {
-    return <div className="rounded-xl border border-bad/40 bg-bad/10 p-3 text-sm">3D model import or generation failed. The parametric model is shown instead. You can retry from Edit → 3D.</div>;
+    return <div className="rounded-xl border border-bad/40 bg-bad/10 p-3 text-sm">3D model import or generation failed. The built-in model is shown instead. You can retry from Edit → 3D.</div>;
   }
   if (vehicle.model_url && !vehicle.model_approved) {
     return (
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm">
         <div className="flex-1">
-          <b>Review your {vehicle.model_source === "ai" ? "AI-generated" : "imported"} model.</b> It&apos;s an approximation, not a scan of your car. Keep it, or switch back to the editable parametric model.
+          <b>Review your {vehicle.model_source === "ai" ? "AI-generated" : "imported"} model.</b> It&apos;s an approximation, not a scan of your car. Keep it, or switch back to the built-in model.
           <div className="text-xs text-muted">Visitors see a &ldquo;pending review&rdquo; label until you approve it.</div>
         </div>
-        <button type="button" className="btn-quiet" onClick={() => decide(false)}>Use parametric</button>
+        <button type="button" className="btn-quiet" onClick={() => decide(false)}>Use built-in model</button>
         <button type="button" className="btn-primary" onClick={() => decide(true)}>Approve model</button>
       </div>
     );

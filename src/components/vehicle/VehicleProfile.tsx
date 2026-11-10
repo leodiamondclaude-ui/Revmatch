@@ -11,7 +11,7 @@ import { vehicleName, type Units } from "@/lib/units";
 import { MOD_CATEGORIES, type BuildEvent, type Drive, type ModCategory, type Modification, type Profile, type Vehicle, type VehiclePhoto } from "@/lib/types";
 import { Avatar } from "@/components/ui/Avatar";
 import { Modal } from "@/components/ui/Modal";
-import { CATEGORY_PART, PART_LABEL, VIEWS, type ViewId } from "@/components/three/parts";
+import { CATEGORY_PART, PART_LABEL, VIEWS, type ViewId, STUDIO_CAR_CREDIT } from "@/components/three/parts";
 import type { ViewRequest } from "@/components/three/VehicleViewer";
 import { ModEditor } from "./ModEditor";
 import { QrCard } from "./QrCard";
@@ -122,11 +122,16 @@ export function VehicleProfile({ vehicle: v, owner, mods, photos, events, public
               ))}
             </div>
             <div className="chip hidden shrink-0 bg-black/60 sm:inline-flex">
-              {v.model_url ? (v.model_source === "ai" ? "AI-generated approximation" : "Library model") + (v.model_approved ? "" : " · pending review") : "Parametric model"}
+              {v.model_url ? (v.model_source === "ai" ? "AI-generated approximation" : "Library model") + (v.model_approved ? "" : " · pending review")
+                : v.model_config?.representation === "parametric" ? "Parametric model" : "Studio stand-in · not exact shape"}
             </div>
           </div>
-          <div className="pointer-events-none absolute bottom-3 left-3 hidden font-mono sm:block text-[10px] uppercase tracking-widest text-muted">Drag to orbit · pinch or scroll to zoom · right-drag or two-finger drag to pan · tap a part</div>
-          {v.model_attribution && <div className="absolute bottom-3 right-3 max-w-[50%] truncate text-right text-[10px] text-dim" title={v.model_attribution}>{v.model_attribution}</div>}
+          <div className="pointer-events-none absolute bottom-3 left-3 hidden max-w-[48%] truncate font-mono sm:block text-[10px] uppercase tracking-widest text-muted">Drag to orbit · pinch or scroll to zoom · right-drag or two-finger drag to pan · tap a part</div>
+          {(v.model_url ? v.model_attribution : v.model_config?.representation !== "parametric" ? STUDIO_CAR_CREDIT : null) && (
+            <div className="absolute bottom-3 right-3 max-w-[48%] truncate text-right text-[10px] text-dim" title={(v.model_url ? v.model_attribution : STUDIO_CAR_CREDIT) ?? ""}>
+              {v.model_url ? v.model_attribution : STUDIO_CAR_CREDIT}
+            </div>
+          )}
 
           {/* Part panel */}
           {part && (

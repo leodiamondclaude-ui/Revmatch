@@ -287,7 +287,7 @@ export function Wizard({ userId, accent: userAccent, integrations }: { userId: s
         <section className="space-y-5">
           <div className="grid gap-3 sm:grid-cols-3">
             {([
-              ["procedural", "Parametric model", "Built in the browser from your specs. Paint, wheels, aero, tint and exhaust are all editable, and every part is clickable.", true],
+              ["procedural", "Built-in model", "A photoreal studio car (or a parametric model that follows your body style) shown with your paint, wheels, tint and aero. Every part is clickable. A stand-in, not your exact car.", true],
               ["library", "Existing 3D model", "Search Sketchfab for a downloadable model of your car, then import it.", integrations.sketchfab && integrations.serviceRole],
               ["ai", "AI-generated from photos", "Meshy builds a textured mesh from your photos. It's an approximation, not a scan, and takes a few minutes.", integrations.meshy && integrations.serviceRole],
             ] as const).map(([id, title, body, ok]) => (
@@ -304,7 +304,7 @@ export function Wizard({ userId, accent: userAccent, integrations }: { userId: s
             <div className="panel overflow-hidden">
               <VehicleViewer bodyStyle={bodyStyle} config={config} accent={accent} showPins={false} className="relative h-[360px] w-full sm:h-[440px]" />
               <div className="border-t border-line p-3 text-xs text-muted">
-                {source === "procedural" ? "Parametric representation: proportions follow the body style, not exact factory dimensions." : "The parametric preview is shown until the imported or generated model is ready. Paint and part settings still drive the clickable mod overlay."}
+                {source === "procedural" ? ((config.representation ?? "studio") === "studio" ? "Studio stand-in: your paint, wheels, tint and aero on a generic sports-car body, not your car's exact shape." : "Parametric representation: proportions follow the body style, not exact factory dimensions.") : "This preview is shown until the imported or generated model is ready."}
               </div>
             </div>
             <div className="panel max-h-[520px] overflow-y-auto p-5">

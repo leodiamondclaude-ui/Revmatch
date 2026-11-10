@@ -111,15 +111,15 @@ export function EditVehicle({ vehicle: v, isPrimary, angleCount, integrations }:
               <div className="border-t border-line p-3 text-xs text-muted">Current source: <b className="text-ink">{v.model_source}</b>{v.model_attribution && <> · {v.model_attribution}</>}</div>
             </div>
             <div className="panel max-h-[520px] overflow-y-auto p-5">
-              <div className="label mb-3">{v.model_url ? "Overlay & fallback settings" : "Parametric configuration"}</div>
+              <div className="label mb-3">{v.model_url ? "Overlay & fallback settings" : "Model configuration"}</div>
               <ModelConfigurator bodyStyle={bodyStyle} config={config} onBodyStyle={setBodyStyle} onChange={setConfig} />
             </div>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             <div className="panel p-5">
-              <div className="font-semibold">Parametric</div>
-              <p className="mt-1 text-sm text-muted">Fully editable, with every part clickable.</p>
-              <button type="button" className="btn-ghost mt-3" onClick={revert} disabled={!v.model_url}>Use parametric</button>
+              <div className="font-semibold">Built-in model</div>
+              <p className="mt-1 text-sm text-muted">Realistic studio car or parametric model, fully editable, with every part clickable.</p>
+              <button type="button" className="btn-ghost mt-3" onClick={revert} disabled={!v.model_url}>Use built-in model</button>
             </div>
             <div className="panel p-5">
               <div className="font-semibold">Library model (Sketchfab)</div>

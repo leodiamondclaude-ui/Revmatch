@@ -33,6 +33,8 @@ export type BodyStyle = "coupe" | "sedan" | "hatch" | "wagon" | "suv" | "truck";
 
 /** Parametric description of the procedural 3D car (and overlay hints for GLB models). */
 export interface ModelConfig {
+  /** "studio": realistic base model recoloured with this config. "parametric": generated to match body style. */
+  representation?: "studio" | "parametric";
   paint?: string;
   finish?: "gloss" | "metallic" | "matte" | "satin";
   wheelColor?: string;

@@ -35,6 +35,17 @@ export function ModelConfigurator({ bodyStyle, config, onBodyStyle, onChange }: 
   const set = <K extends keyof ModelConfig>(k: K, v: ModelConfig[K]) => onChange({ ...config, [k]: v });
   return (
     <div className="grid gap-5 sm:grid-cols-2">
+      <div className="sm:col-span-2">
+        <Row label="3D representation">
+          <Seg value={config.representation ?? "studio"} onChange={(v) => set("representation", v)}
+            options={[["studio", "Realistic studio model"], ["parametric", "Parametric (matches body style)"]]} />
+          <p className="text-xs text-muted">
+            {(config.representation ?? "studio") === "studio"
+              ? "A photoreal sports-car body shown with your paint, finish, wheel colour, calipers, tint, ride height and aero. It is a stand-in, not your car's exact shape. For an exact match, import a library model or generate one from your photos."
+              : "A simplified model generated from your body style. Less realistic, but its proportions follow your car type and every option below applies."}
+          </p>
+        </Row>
+      </div>
       <Row label="Body style">
         <Seg value={bodyStyle} onChange={onBodyStyle} options={[["coupe", "Coupe"], ["sedan", "Sedan"], ["hatch", "Hatch"], ["wagon", "Wagon"], ["suv", "SUV"], ["truck", "Truck"]]} />
       </Row>
@@ -42,10 +53,10 @@ export function ModelConfigurator({ bodyStyle, config, onBodyStyle, onChange }: 
         <Seg value={config.finish} onChange={(v) => set("finish", v)} options={[["gloss", "Gloss"], ["metallic", "Metallic"], ["satin", "Satin"], ["matte", "Matte"]]} />
       </Row>
       <div className="sm:col-span-2"><Row label="Paint"><ColorField swatches value={config.paint} onChange={(v) => set("paint", v)} /></Row></div>
-      <Row label="Wheel design">
+      <Row label={(config.representation ?? "studio") === "studio" ? "Wheel design (parametric only)" : "Wheel design"}>
         <Seg value={config.wheelStyle} onChange={(v) => set("wheelStyle", v)} options={[["five_spoke", "5-spoke"], ["multi_spoke", "Multi"], ["mesh", "Mesh"], ["dish", "Dish"], ["turbofan", "Turbofan"]]} />
       </Row>
-      <Row label={`Wheel size · ${config.wheelSize ?? 18}"`}>
+      <Row label={`Wheel size · ${config.wheelSize ?? 18}"${(config.representation ?? "studio") === "studio" ? " (parametric only)" : ""}`}>
         <input type="range" min={15} max={22} value={config.wheelSize ?? 18} onChange={(e) => set("wheelSize", +e.target.value)} className="w-full accent-[var(--accent)]" />
       </Row>
       <Row label="Wheel finish"><ColorField value={config.wheelColor} onChange={(v) => set("wheelColor", v)} /></Row>
@@ -73,7 +84,7 @@ export function ModelConfigurator({ bodyStyle, config, onBodyStyle, onChange }: 
       <Row label="Tip finish">
         <Seg value={config.exhaustFinish ?? "chrome"} onChange={(v) => set("exhaustFinish", v)} options={[["chrome", "Chrome"], ["black", "Black"], ["titanium", "Titanium"]]} />
       </Row>
-      <Row label="Decals / stripes">
+      <Row label={(config.representation ?? "studio") === "studio" ? "Decals / stripes (parametric only)" : "Decals / stripes"}>
         <Seg value={config.stripe ?? "none"} onChange={(v) => onChange({ ...config, stripe: v, stripeColor: config.stripeColor ?? "#ffffff" })} options={[["none", "None"], ["racing", "Racing"], ["side", "Side"]]} />
       </Row>
       {config.stripe && config.stripe !== "none" && <Row label="Stripe colour"><ColorField value={config.stripeColor} onChange={(v) => set("stripeColor", v)} /></Row>}
