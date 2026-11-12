@@ -34,6 +34,7 @@ npm run build
 | AI vehicle identification | **Anthropic API** (`ANTHROPIC_API_KEY`), Claude vision with structured output | Wizard shows a notice; enter details manually |
 | Existing 3D model search/import | **Sketchfab Data API** token (`SKETCHFAB_API_TOKEN`) + `SUPABASE_SERVICE_ROLE_KEY` | Option disabled; parametric model used |
 | AI image-to-3D generation | **Meshy** API key (`MESHY_API_KEY`) + `SUPABASE_SERVICE_ROLE_KEY` | Option disabled; parametric model used |
+| AI model agent (fallback) | `ANTHROPIC_API_KEY` + `SKETCHFAB_API_TOKEN` + `SUPABASE_SERVICE_ROLE_KEY` | Option disabled |
 | Maps | CARTO dark basemap tiles + OpenStreetMap data (no key; attribution shown) | — |
 | Drive recording | Browser **Geolocation** permission, HTTPS | Drive screen shows the error |
 | Peak-g estimate | **DeviceMotion** permission (prompted on iOS) | Omitted; GPS/OBD values used |
@@ -110,6 +111,16 @@ Imported and generated models need **owner approval** and show *pending review* 
 **Rendering:** a photographic studio HDRI (Poly Haven, CC0, bundled via `@pmndrs/assets`, so there are no runtime downloads) plus softbox light-formers, AgX tone mapping, soft contact shadows, bloom, vignette and SMAA. Desktops also get a blurred mirror floor; phones and low-core devices get a lighter pipeline automatically (`quality="auto"`).
 
 **Studio model licence:** "Car Concept" from the Khronos glTF Sample Assets, **CC BY 4.0**, itself derived from a public-domain model by Unity Fan. Khronos logos, which the licence excludes, have been removed. The credit is shown in the viewer, and details are in `public/models/ATTRIBUTION.md`.
+
+### AI model agent (fallback for cars without a library model)
+`src/lib/agent/modelAgent.ts` is a Claude agent (Opus 5.5, tool runner) with these tools:
+`search_sketchfab` → `view_candidate` (thumbnail + metadata, compared with the owner's photos) → `download_model` (stores the GLB and returns its materials and mesh nodes with world-space bounds, via `glbInspect.ts`) → `map_base_model` (paint, glass and caliper materials, the four wheel nodes, nodes to hide, front axis) → `add_part` per visible mod (a Sketchfab part model with anchor, orientation, size and the base nodes it replaces) → `set_material` → `finish`.
+
+- **Licences:** only CC BY and CC0 (commercial use and modification allowed), enforced in code, not left to the model. Every model used is credited in `vehicles.model_attribution`.
+- **Quality rules** in the prompt: the right generation and body, no toys or game rips, prefers original creators, realistic PBR and modelled interiors.
+- **Output:** an `AssemblyPlan` (`src/lib/agent/plan.ts`, zod-validated) saved to `vehicles.model_assembly`. `AssembledCar.tsx` rebuilds it: it orients and scales the base, recolours mapped materials (the owner's paint and tint choices win), hides replaced nodes, and fits parts at anchors found by raycasting the real bodywork (rear deck, front lip, rear lower, side skirts, roof, each wheel).
+- **Runs** via `POST /api/models/agent` in the background (`after()`), logging progress to `vehicles.model_agent_log`, which the vehicle page polls. Apply `0002_model_agent.sql`. Runs take a few minutes, so host on a plan that allows long function durations, or move the call to a worker.
+- **Limits:** parts are fitted by bounding box and anchor, so complex body kits can sit imperfectly; the owner approves the result before visitors see it as final. Car models may include manufacturer badges, so check trademark use before public commercial launch.
 
 ### AI identification
 `/api/ai/identify` sends up to 6 downscaled photos to Claude (`claude-opus-5-5`, adaptive thinking, zod-validated structured output). It returns a year *range*, make/model/trim/generation, body style, paint hex and finish, visual parameters for the 3D model, and suspected mods with evidence and confidence. Low-confidence mods start unchecked. Every AI-filled field is flagged "AI · verify" in the form.

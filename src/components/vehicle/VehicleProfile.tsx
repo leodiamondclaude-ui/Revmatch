@@ -113,7 +113,7 @@ export function VehicleProfile({ vehicle: v, owner, mods, photos, events, public
         {/* 3D stage */}
         <section className="panel relative overflow-hidden">
           <VehicleViewer bodyStyle={v.body_style} config={v.model_config ?? {}} accent={accent}
-            modelUrl={v.model_url} mods={mods.map((m) => ({ id: m.id, category: m.category, name: m.name }))}
+            modelUrl={v.model_url} assembly={v.model_assembly} mods={mods.map((m) => ({ id: m.id, category: m.category, name: m.name }))}
             selected={part} onSelect={(p) => setPart(p || null)} view={view} className="relative h-[58vh] min-h-[340px] w-full" />
           <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
             <div className="pointer-events-auto flex max-w-full gap-1 overflow-x-auto rounded-lg border border-line bg-black/60 p-1 backdrop-blur">
@@ -122,7 +122,7 @@ export function VehicleProfile({ vehicle: v, owner, mods, photos, events, public
               ))}
             </div>
             <div className="chip hidden shrink-0 bg-black/60 sm:inline-flex">
-              {v.model_url ? (v.model_source === "ai" ? "AI-generated approximation" : "Library model") + (v.model_approved ? "" : " · pending review")
+              {v.model_url ? (v.model_source === "ai" ? "AI-generated approximation" : v.model_source === "agent" ? "Assembled from licensed models" : "Library model") + (v.model_approved ? "" : " · pending review")
                 : v.model_config?.representation === "parametric" ? "Parametric model" : "Studio stand-in · not exact shape"}
             </div>
           </div>

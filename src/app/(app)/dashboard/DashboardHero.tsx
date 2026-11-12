@@ -11,7 +11,7 @@ export function DashboardHero({ vehicle: v, mods }: { vehicle: Vehicle; mods: Vi
   return (
     <section className="panel panel-accent relative overflow-hidden">
       <VehicleViewer bodyStyle={v.body_style} config={v.model_config ?? {}} accent={accentFromPaint(v.model_config?.paint ?? v.exterior_color_hex)}
-        modelUrl={v.model_url} mods={mods} autoRotate showPins={false} className="relative h-[300px] w-full sm:h-[380px]" />
+        modelUrl={v.model_url} assembly={v.model_assembly} mods={mods} autoRotate showPins={false} className="relative h-[300px] w-full sm:h-[380px]" />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-bg/90 via-bg/30 to-transparent" />
       <div className="absolute bottom-0 left-0 p-5 sm:p-7">
         <div className="label text-accent">Primary · {v.year} {v.make}</div>

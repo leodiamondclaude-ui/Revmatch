@@ -9,6 +9,8 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import type { BodyStyle, ModCategory, ModelConfig } from "@/lib/types";
 import { ProceduralCar } from "./ProceduralCar";
 import { RealisticCar, STUDIO_CAR_CREDIT } from "./RealisticCar";
+import { AssembledCar } from "./AssembledCar";
+import type { AssemblyPlan } from "@/lib/agent/plan";
 export { STUDIO_CAR_CREDIT };
 import { dimsFor } from "./carGeometry";
 import { CATEGORY_PART, PART_LABEL, VIEWS, type ViewId } from "./parts";
@@ -27,6 +29,8 @@ interface Props {
   config: ModelConfig;
   accent: string;
   modelUrl?: string | null;
+  /** Agent-built assembly (licensed base model + fitted parts). Takes precedence over modelUrl. */
+  assembly?: AssemblyPlan | null;
   mods?: ViewerMod[];
   selected?: string | null;
   onSelect?: (part: string) => void;
@@ -47,7 +51,8 @@ const BLACK_ENV = (() => {
 })();
 
 /** The representation a viewer will show for this vehicle. */
-export function representationOf(config: ModelConfig, modelUrl?: string | null) {
+export function representationOf(config: ModelConfig, modelUrl?: string | null, assembly?: AssemblyPlan | null) {
+  if (assembly) return "assembled" as const;
   if (modelUrl) return "glb" as const;
   return config.representation === "parametric" ? ("parametric" as const) : ("studio" as const);
 }
@@ -155,11 +160,11 @@ function anchorFor(part: string, bodyStyle: BodyStyle, wheelSize?: number): [num
   }
 }
 
-export function VehicleViewer({ bodyStyle, config, accent, modelUrl, mods = [], selected, onSelect, view, autoRotate, className, showPins = true, quality = "auto" }: Props) {
+export function VehicleViewer({ bodyStyle, config, accent, modelUrl, assembly, mods = [], selected, onSelect, view, autoRotate, className, showPins = true, quality = "auto" }: Props) {
   const controls = useRef<OrbitControlsImpl | null>(null);
   const pinEls = useRef<Record<string, HTMLButtonElement | null>>({});
   const [interacted, setInteracted] = useState(false);
-  const rep = representationOf(config, modelUrl);
+  const rep = representationOf(config, modelUrl, assembly);
   const [hq, setHq] = useState(quality === "high");
   useEffect(() => {
     if (quality !== "auto") { setHq(quality === "high"); return; }
@@ -173,7 +178,7 @@ export function VehicleViewer({ bodyStyle, config, accent, modelUrl, mods = [], 
   const pins = useMemo(() => {
     const m = new Map<string, number>();
     for (const mod of mods) {
-      const part = rep === "glb" ? CATEGORY_PART[mod.category] ?? PIN_ANCHOR[mod.category] : PIN_ANCHOR[mod.category];
+      const part = rep === "glb" || rep === "assembled" ? CATEGORY_PART[mod.category] ?? PIN_ANCHOR[mod.category] : PIN_ANCHOR[mod.category];
       if (part) m.set(part, (m.get(part) ?? 0) + 1);
     }
     return [...m.entries()];
@@ -192,7 +197,8 @@ export function VehicleViewer({ bodyStyle, config, accent, modelUrl, mods = [], 
         <spotLight position={[4, 9, 3]} angle={0.4} penumbra={1} intensity={28} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0001} />
         <spotLight position={[-8, 1.2, -6]} angle={0.5} penumbra={1} intensity={14} color={accent} />
         <Suspense fallback={null}>
-          {rep === "glb" ? <GlbCar url={modelUrl!} />
+          {rep === "assembled" ? <AssembledCar plan={assembly!} config={config} />
+            : rep === "glb" ? <GlbCar url={modelUrl!} />
             : rep === "studio" ? <RealisticCar config={config} accent={accent} selected={selected} onSelect={(p) => onSelect?.(p)} />
             : <ProceduralCar bodyStyle={bodyStyle} config={config} accent={accent} selected={selected} onSelect={(p) => onSelect?.(p)} />}
           {/* Photographic studio HDRI (CC0, Poly Haven via pmndrs/assets) plus softboxes for long body-line highlights. */}

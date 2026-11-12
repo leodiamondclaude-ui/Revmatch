@@ -57,7 +57,7 @@ export function EditVehicle({ vehicle: v, isPrimary, angleCount, integrations }:
     if (r.ok) setLib(j.results); else setMsg({ ok: false, text: j.error });
   }
   async function revert() {
-    await supabase.from("vehicles").update({ model_url: null, model_source: "procedural", model_status: "ready", model_attribution: null, model_approved: true }).eq("id", v.id);
+    await supabase.from("vehicles").update({ model_url: null, model_assembly: null, model_source: "procedural", model_status: "ready", model_attribution: null, model_approved: true }).eq("id", v.id);
     router.refresh();
     setMsg({ ok: true, text: "Switched to the parametric model." });
   }
@@ -107,13 +107,20 @@ export function EditVehicle({ vehicle: v, isPrimary, angleCount, integrations }:
         <div className="space-y-5">
           <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
             <div className="panel overflow-hidden">
-              <VehicleViewer bodyStyle={bodyStyle} config={config} accent={accent} modelUrl={v.model_url} showPins={false} className="relative h-[380px] w-full" />
+              <VehicleViewer bodyStyle={bodyStyle} config={config} accent={accent} modelUrl={v.model_url} assembly={v.model_assembly} showPins={false} className="relative h-[380px] w-full" />
               <div className="border-t border-line p-3 text-xs text-muted">Current source: <b className="text-ink">{v.model_source}</b>{v.model_attribution && <> · {v.model_attribution}</>}</div>
             </div>
             <div className="panel max-h-[520px] overflow-y-auto p-5">
               <div className="label mb-3">{v.model_url ? "Overlay & fallback settings" : "Model configuration"}</div>
               <ModelConfigurator bodyStyle={bodyStyle} config={config} onBodyStyle={setBodyStyle} onChange={setConfig} />
             </div>
+          </div>
+          <div className="panel p-5">
+            <div className="font-semibold">AI model agent</div>
+            <p className="mt-1 text-sm text-muted">Finds a licensed, professionally made model of this exact car on Sketchfab, maps its paint and wheels, and fits your logged mods using real part models. Every model used is credited on the vehicle page.</p>
+            {!(integrations.anthropic && integrations.sketchfab && integrations.serviceRole) ? <div className="mt-2"><IntegrationNotice name="Model agent" envVar="ANTHROPIC_API_KEY + SKETCHFAB_API_TOKEN + SUPABASE_SERVICE_ROLE_KEY" /></div> : (
+              <button type="button" className="btn-primary mt-3" disabled={!!busy} onClick={() => post("/api/models/agent", { vehicleId: v.id }, "Model agent…")}><Sparkles size={16} /> Build my car</button>
+            )}
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             <div className="panel p-5">

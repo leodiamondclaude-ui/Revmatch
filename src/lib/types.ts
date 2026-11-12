@@ -80,7 +80,9 @@ export interface Vehicle {
   body_style: BodyStyle;
   model_config: ModelConfig;
   model_url: string | null;
-  model_source: "procedural" | "library" | "ai";
+  model_source: "procedural" | "library" | "ai" | "agent";
+  model_assembly: import("./agent/plan").AssemblyPlan | null;
+  model_agent_log: string[] | null;
   model_status: "none" | "searching" | "generating" | "ready" | "failed";
   model_task_id: string | null;
   model_attribution: string | null;

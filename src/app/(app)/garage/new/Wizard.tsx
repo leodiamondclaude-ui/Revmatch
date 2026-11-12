@@ -42,7 +42,7 @@ export function Wizard({ userId, accent: userAccent, integrations }: { userId: s
   const [bodyStyle, setBodyStyle] = useState<BodyStyle>("coupe");
   const [config, setConfig] = useState<ModelConfig>({ ...DEFAULT_CONFIG });
   const [mods, setMods] = useState<SuggestedMod[]>([]);
-  const [source, setSource] = useState<"procedural" | "library" | "ai">("procedural");
+  const [source, setSource] = useState<"procedural" | "library" | "ai" | "agent">("procedural");
   const [libQuery, setLibQuery] = useState("");
   const [libResults, setLibResults] = useState<LibResult[] | null>(null);
   const [libPick, setLibPick] = useState<LibResult | null>(null);
@@ -145,6 +145,10 @@ export function Wizard({ userId, accent: userAccent, integrations }: { userId: s
         setSaving("Importing 3D model…");
         const r = await fetch("/api/models/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ vehicleId: v.id, uid: libPick.uid }) });
         if (!r.ok) setError(`Saved, but the model import failed: ${(await r.json()).error}. The parametric model is shown instead.`);
+      } else if (source === "agent") {
+        setSaving("Starting the model agent…");
+        const r = await fetch("/api/models/agent", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ vehicleId: v.id }) });
+        if (!r.ok) setError(`Saved, but the model agent could not start: ${(await r.json()).error}`);
       } else if (source === "ai") {
         setSaving("Starting AI 3D generation…");
         const r = await fetch("/api/models/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ vehicleId: v.id }) });
@@ -285,10 +289,11 @@ export function Wizard({ userId, accent: userAccent, integrations }: { userId: s
 
       {step === 3 && (
         <section className="space-y-5">
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {([
               ["procedural", "Built-in model", "A photoreal studio car (or a parametric model that follows your body style) shown with your paint, wheels, tint and aero. Every part is clickable. A stand-in, not your exact car.", true],
               ["library", "Existing 3D model", "Search Sketchfab for a downloadable model of your car, then import it.", integrations.sketchfab && integrations.serviceRole],
+              ["agent", "AI model agent", "An AI agent finds a licensed, professionally made model of your exact car on Sketchfab and fits your mods using real part models. Takes a few minutes.", integrations.anthropic && integrations.sketchfab && integrations.serviceRole],
               ["ai", "AI-generated from photos", "Meshy builds a textured mesh from your photos. It's an approximation, not a scan, and takes a few minutes.", integrations.meshy && integrations.serviceRole],
             ] as const).map(([id, title, body, ok]) => (
               <button key={id} type="button" disabled={!ok} onClick={() => { setSource(id); setApproved(false); }}
@@ -352,7 +357,7 @@ export function Wizard({ userId, accent: userAccent, integrations }: { userId: s
             <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
               <div><dt className="label">Photos</dt><dd className="num">{photos.length}</dd></div>
               <div><dt className="label">Mods</dt><dd className="num">{mods.filter((m) => m.keep).length}</dd></div>
-              <div><dt className="label">3D</dt><dd>{source === "procedural" ? "Parametric" : source === "library" ? "Library import" : "AI generation"}</dd></div>
+              <div><dt className="label">3D</dt><dd>{source === "procedural" ? "Built-in" : source === "library" ? "Library import" : source === "agent" ? "AI model agent" : "AI generation"}</dd></div>
               <div><dt className="label">Visibility</dt><dd className="capitalize">{draft.visibility}</dd></div>
             </dl>
           </div>
