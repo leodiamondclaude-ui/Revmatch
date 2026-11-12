@@ -59,8 +59,18 @@ export async function meshyCreate(imageUrls: string[]) {
   const res = await fetch(MESHY, {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.MESHY_API_KEY}`, "Content-Type": "application/json" },
-    // Minimal request body. Check field names against https://docs.meshy.ai before production use.
-    body: JSON.stringify({ image_urls: imageUrls.slice(0, 4), should_texture: true, enable_pbr: true }),
+    // Highest-quality settings per https://docs.meshy.ai/api/multi-image-to-3d (checked Nov 2026):
+    // Meshy 7.1 with the 2K "Ultra" geometry pass, PBR textures, no remesh (remeshing lowers fidelity),
+    // GLB only (shorter task). The first image is treated as the front view.
+    body: JSON.stringify({
+      image_urls: imageUrls.slice(0, 4),
+      ai_model: "latest",
+      geometry_resolution: "2k",
+      should_texture: true,
+      enable_pbr: true,
+      should_remesh: false,
+      target_formats: ["glb"],
+    }),
   });
   if (!res.ok) throw new Error(`Meshy rejected the job (${res.status}): ${(await res.text()).slice(0, 200)}`);
   const json = (await res.json()) as { result: string };

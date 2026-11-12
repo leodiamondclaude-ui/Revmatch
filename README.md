@@ -40,7 +40,7 @@ npm run build
 | Screen stays on while recording | **Screen Wake Lock API** (most modern mobile browsers) | Recording pauses if the screen locks |
 | OBD-II | **BLE ELM327-compatible adapter** + **Web Bluetooth** (Chrome/Edge on Android, Windows, macOS, ChromeOS) | GPS-only. Not supported: iOS browsers, Bluetooth Classic (SPP) and Wi-Fi adapters |
 
-> The Meshy request body in `src/lib/models3d.ts` uses the minimal documented fields (`image_urls`, texturing flags). Check it against the current Meshy docs before production use, because their API evolves.
+> The Meshy request in `src/lib/models3d.ts` was checked against Meshy's docs in November 2026. It uses Meshy 7.1 with 2K geometry, PBR textures, no remesh and GLB output.
 
 ---
 
