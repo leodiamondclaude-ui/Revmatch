@@ -42,3 +42,9 @@ export type AssemblyPlan = z.infer<typeof AssemblyPlanSchema>;
 
 /** Attribution line required by CC BY. */
 export const credit = (name: string, author: string, license: string, url: string) => `"${name}" by ${author}, ${license}, via Sketchfab: ${url}`;
+
+/** Licence label RevMatch gives models it generated itself (no third-party licence applies). */
+export const GENERATED_LICENSE = "Generated for RevMatch";
+/** Credit line for a base model: CC attribution for Sketchfab models, a plain label for generated ones. */
+export const baseCredit = (b: { name: string; author: string; license: string; viewerUrl: string }) =>
+  b.license === GENERATED_LICENSE ? `"${b.name}": AI-generated (${b.author}) from a description of the stock car. Not a scan.` : credit(b.name, b.author, b.license, b.viewerUrl);

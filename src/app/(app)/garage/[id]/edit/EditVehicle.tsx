@@ -46,7 +46,7 @@ export function EditVehicle({ vehicle: v, isPrimary, angleCount, integrations }:
     const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const j = await r.json();
     setBusy(null);
-    setMsg(r.ok ? { ok: true, text: label.replace("…", "") + " started. Check the vehicle page." } : { ok: false, text: j.error });
+    setMsg(r.ok ? { ok: true, text: j.library && !j.started ? "Ready: this car was already prepared in the RevMatch model library." : j.library ? "Library model applied; now fitting your mods. Check the vehicle page." : label.replace("…", "") + " started. Check the vehicle page." } : { ok: false, text: j.error });
     if (r.ok) router.push(`/v/${v.slug}`);
   }
   async function search() {

@@ -10,7 +10,7 @@ export async function GET(req: Request) {
   const id = new URL(req.url).searchParams.get("vehicleId");
   const { data: v } = await supabase.from("vehicles").select("id, model_status, model_task_id, model_url, model_source, model_agent_log").eq("id", id ?? "").eq("owner_id", user.id).maybeSingle();
   if (!v) return NextResponse.json({ error: "Vehicle not found" }, { status: 404 });
-  if (v.model_source === "agent") return NextResponse.json({ status: v.model_status, url: v.model_url, log: v.model_agent_log ?? [] });
+  if (v.model_source === "agent" || v.model_source === "library") return NextResponse.json({ status: v.model_status, url: v.model_url, log: v.model_agent_log ?? [] });
   if (v.model_status !== "generating" || !v.model_task_id) return NextResponse.json({ status: v.model_status, url: v.model_url });
   if (!process.env.MESHY_API_KEY) return NextResponse.json({ status: "failed", error: "MESHY_API_KEY missing" });
   try {

@@ -27,7 +27,7 @@ const C = "00000000-0000-0000-0000-00000000000c";
 async function setup() {
   const db = new PGlite({ extensions: { pgcrypto } });
   await db.exec(STUBS);
-  await db.exec(readFileSync("supabase/migrations/0001_init.sql", "utf8"));
+  for (const f of ["0001_init.sql", "0002_model_agent.sql", "0003_model_library.sql"]) await db.exec(readFileSync(`supabase/migrations/${f}`, "utf8"));
   await db.exec(`
     grant usage on schema public, auth, storage to anon, authenticated;
     grant all on all tables in schema public to authenticated; grant select on all tables in schema public to anon;
@@ -68,6 +68,17 @@ test("RLS end to end", async (t) => {
     await fails(as(db, B, `insert into vehicles (owner_id, make, model) values ($1,'x','y')`, [A]));
     assert.equal((await as(db, B, `update vehicles set make='hacked' where id=$1 returning id`, [pub])).length, 0);
     await fails(as(db, B, `insert into modifications (vehicle_id, owner_id, category, name) values ($1,$2,'wheels','x')`, [pub, B]));
+  });
+
+  await t.test("model library: everyone reads ready models, nobody writes", async () => {
+    await db.exec(`insert into model_library (key, make, model, generation, year_from, year_to, status) values
+      ('volkswagen|eos|1f','Volkswagen','Eos','1F',2007,2016,'ready'), ('ford|f150|14thgen','Ford','F-150','14th gen',2021,2026,'queued')`);
+    assert.deepEqual((await as<{ model: string }>(db, A, "select model from model_library")).map((r) => r.model), ["Eos"], "queued entries stay hidden");
+    assert.equal((await as(db, null, "select id from model_library")).length, 0, "signed-out visitors see none");
+    await fails(as(db, A, "insert into model_library (key, make, model, year_from, year_to) values ('x','x','x',2020,2020)"));
+    assert.equal((await as(db, A, "update model_library set status='ready' returning id")).length, 0);
+    await fails(db.query("insert into model_library (key, make, model, year_from, year_to) values ('y','y','y',2021,2020)"));
+    await as(db, A, "update vehicles set model_source='library' where id=$1", [pub]);
   });
 
   await t.test("friends-only vehicle opens after friendship accepted", async () => {

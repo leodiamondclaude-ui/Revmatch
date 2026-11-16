@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSessionUser, createServiceClient } from "@/lib/supabase/server";
 import { createSketchfabClient } from "@/lib/agent/sketchfab";
 import { runModelAgent, type AgentMod } from "@/lib/agent/modelAgent";
+import { findReady, planFromLibrary, requestEntry } from "@/lib/agent/library";
 import type { Vehicle } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -26,21 +27,41 @@ export async function POST(req: Request) {
   ]);
 
   const admin = createServiceClient()!;
-  const log: string[] = [];
+  const paintHex = v.model_config?.paint ?? v.exterior_color_hex, finish = v.model_config?.finish ?? null;
+  const car = { year: v.year, make: v.make, model: v.model };
+
+  // A stock model on standby in the library: show it at once.
+  const lib = await findReady(admin, car).catch(() => null);
+  // Mods the agent can fit as real part models (the rest are recolours or invisible).
+  const visualMods = (mods ?? []).filter((m) => ["spoiler", "wheels", "splitter", "diffuser", "body_kit", "exhaust"].includes(m.category));
+  if (lib) {
+    const plan = planFromLibrary(lib, paintHex, finish);
+    await admin.from("vehicles").update({
+      model_assembly: plan, model_url: plan.base.glbUrl, model_status: visualMods.length ? "generating" : "ready", model_source: "library", model_approved: false,
+      model_attribution: plan.attribution.join(" · "), model_agent_log: [`Library model ready: ${lib.base!.name}`],
+    }).eq("id", v.id);
+    if (!visualMods.length) return NextResponse.json({ started: false, library: true });
+  } else {
+    // Not on standby yet: queue it so the library agent prepares it for the next owner too.
+    await requestEntry(admin, car).catch(() => null);
+  }
+
+  const log: string[] = lib ? [`Library model ready: ${lib.base!.name}`, "Fitting your mods…"] : [];
   const pushLog = async (line: string) => {
     log.push(`${new Date().toISOString().slice(11, 19)} ${line}`);
     await admin.from("vehicles").update({ model_agent_log: log.slice(-40) }).eq("id", v.id);
   };
-  await admin.from("vehicles").update({ model_status: "generating", model_source: "agent", model_agent_log: [] }).eq("id", v.id);
+  if (!lib) await admin.from("vehicles").update({ model_status: "generating", model_source: "agent", model_agent_log: [] }).eq("id", v.id);
 
   after(async () => {
     try {
       const plan = await runModelAgent(
-        { year: v.year, make: v.make, model: v.model, trim: v.trim, bodyStyle: v.body_style, paintHex: v.model_config?.paint ?? v.exterior_color_hex, finish: v.model_config?.finish ?? null, generation: (v.ai_identification as { generation?: string } | null)?.generation ?? null },
+        { year: v.year, make: v.make, model: v.model, trim: v.trim, bodyStyle: v.body_style, paintHex, finish, generation: (v.ai_identification as { generation?: string } | null)?.generation ?? lib?.generation ?? null },
         (mods ?? []) as AgentMod[],
         (photos ?? []).map((p) => p.url),
         {
           sketchfab: createSketchfabClient(),
+          presetBase: lib ? { base: lib.base!, structure: lib.structure ?? "" } : null,
           log: pushLog,
           store: async (bytes, name) => {
             const path = `${user.id}/${v.id}/agent/${name}`;
@@ -51,14 +72,15 @@ export async function POST(req: Request) {
         },
       );
       await admin.from("vehicles").update({
-        model_assembly: plan, model_url: plan.base.glbUrl, model_status: "ready", model_approved: false,
+        model_assembly: plan, model_url: plan.base.glbUrl, model_status: "ready", model_approved: false, model_source: lib ? "library" : "agent",
         model_attribution: plan.attribution.join(" · "),
       }).eq("id", v.id);
       await pushLog("Finished: model ready for your review.");
     } catch (e) {
       await pushLog(`Failed: ${(e as Error).message}`);
-      await admin.from("vehicles").update({ model_status: "failed" }).eq("id", v.id);
+      // With a library base the stock model is still there; only the mod fitting failed.
+      await admin.from("vehicles").update({ model_status: lib ? "ready" : "failed" }).eq("id", v.id);
     }
   });
-  return NextResponse.json({ started: true });
+  return NextResponse.json({ started: true, library: !!lib });
 }
