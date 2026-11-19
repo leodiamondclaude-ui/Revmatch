@@ -15,8 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -35,14 +35,36 @@ jobs:
           path: playwright-report
           retention-days: 7
 
+  mobile:
+    name: Phone app typecheck and bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - name: Bundle for iOS and Android (catches missing modules)
+        run: npx expo export --platform android --platform ios --output-dir /tmp/expo-export
+        env:
+          CI: "1"
+          EXPO_OFFLINE: "1"
+
   full:
     name: Full browser flow on a local Supabase
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: check
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
