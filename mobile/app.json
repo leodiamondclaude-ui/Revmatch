@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "RevMatch",
+    "slug": "revmatch",
+    "scheme": "revmatch",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0a0b0d",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.revmatch.mobile"
+    },
+    "android": {
+      "package": "app.revmatch.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#0a0b0d",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "RevMatch records your route and speed while a drive is running, including when the screen is off. It stops as soon as you end the drive.",
+          "locationWhenInUsePermission": "RevMatch uses your location to record drives.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true,
+          "locationAlwaysPermission": "RevMatch records your route and speed while a drive is running, including when the screen is off.",
+          "motionUsagePermission": false
+        }
+      ],
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": true,
+          "modes": [
+            "central"
+          ],
+          "neverForLocation": true,
+          "bluetoothAlwaysPermission": "RevMatch connects to your OBD-II Bluetooth adapter to read RPM, coolant temperature and throttle during drives."
+        }
+      ]
+    ]
+  }
+}
