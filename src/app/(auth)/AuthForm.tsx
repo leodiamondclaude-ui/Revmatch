@@ -20,11 +20,11 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true); setError(null); setNotice(null);
-    const supabase = createClient();
     try {
+      const clean = username.toLowerCase();
+      if (mode === "signup" && !/^[a-z0-9_]{3,24}$/.test(clean)) throw new Error("Username: 3–24 characters, letters, numbers and underscores.");
+      const supabase = createClient();
       if (mode === "signup") {
-        const clean = username.toLowerCase();
-        if (!/^[a-z0-9_]{3,24}$/.test(clean)) throw new Error("Username: 3–24 characters, letters, numbers and underscores.");
         const { data: taken } = await supabase.from("profiles").select("id").eq("username", clean).maybeSingle();
         if (taken) throw new Error("That username is taken.");
         const { data, error } = await supabase.auth.signUp({

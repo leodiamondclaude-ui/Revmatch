@@ -103,7 +103,7 @@ export function PostCard({ post, viewerId, units, defaultOpen = false }: { post:
           </Link>
         )}
         <footer className="flex items-center gap-1 border-t border-line px-2 py-1.5">
-          <button type="button" onClick={toggleLike} disabled={!viewerId} className={`btn-quiet !px-3 ${liked ? "!text-accent" : ""}`} aria-pressed={liked}>
+          <button type="button" onClick={toggleLike} disabled={!viewerId} className={`btn-quiet !px-3 ${liked ? "!text-accent" : ""}`} aria-pressed={liked} aria-label={liked ? "Unlike" : "Like"}>
             <Heart size={17} fill={liked ? "currentColor" : "none"} className={liked ? "drop-shadow-[0_0_6px_var(--accent)]" : ""} /> <span className="num">{likes}</span>
           </button>
           <button type="button" onClick={loadComments} className="btn-quiet !px-3"><MessageCircle size={17} /> <span className="num">{count}</span></button>

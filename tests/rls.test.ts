@@ -27,13 +27,15 @@ const C = "00000000-0000-0000-0000-00000000000c";
 async function setup() {
   const db = new PGlite({ extensions: { pgcrypto } });
   await db.exec(STUBS);
-  for (const f of ["0001_init.sql", "0002_model_agent.sql", "0003_model_library.sql", "0004_build_sheet.sql", "0005_trust_safety.sql", "0006_notifications_invites.sql"]) await db.exec(readFileSync(`supabase/migrations/${f}`, "utf8"));
+  for (const f of ["0001_init.sql", "0002_model_agent.sql", "0003_model_library.sql", "0004_build_sheet.sql", "0005_trust_safety.sql", "0006_notifications_invites.sql", "0007_jobs_errors.sql"]) await db.exec(readFileSync(`supabase/migrations/${f}`, "utf8"));
   await db.exec(`
     grant usage on schema public, auth, storage to anon, authenticated;
     grant all on all tables in schema public to authenticated; grant select on all tables in schema public to anon;
     grant all on all sequences in schema public to authenticated;
     grant execute on all functions in schema public, auth to anon, authenticated;
-    grant all on storage.objects to authenticated;`);
+    grant all on storage.objects to authenticated;
+    -- Mirror the migrations' revokes (the blanket grant above would otherwise undo them).
+    revoke execute on function public.notify(uuid, uuid, text, uuid, uuid), public.redeem_invite(uuid, text), public.claim_jobs(integer, interval) from anon, authenticated;`);
   for (const [id, u] of [[A, "alice"], [B, "bob"], [C, "carol"]]) {
     await db.query(`insert into auth.users (id, email, raw_user_meta_data) values ($1, $2, $3)`, [id, `${u}@x.test`, JSON.stringify({ username: u })]);
   }
@@ -225,6 +227,31 @@ test("RLS end to end", async (t) => {
     await db.exec("update app_settings set value='true' where key='invite_only'");
     await assert.rejects(db.query("insert into auth.users (id, email, raw_user_meta_data) values (gen_random_uuid(),'g@x.test','{\"username\":\"gina\"}')"));
     await db.exec("update app_settings set value='false' where key='invite_only'");
+  });
+
+  await t.test("jobs: claimed once, stale runs requeued then failed; errors readable by moderators only", async () => {
+    const v = (await as<{ id: string }>(db, A, "insert into vehicles (owner_id, make, model) values ($1,'VW','Eos') returning id", [A]))[0].id;
+    await fails(as(db, A, "insert into jobs (kind, owner_id, vehicle_id) values ('model_agent',$1,$2)", [A, v]));
+    await db.exec("select set_config('request.uid', '', false)"); // the worker runs with the service role: no user
+    await db.query("insert into jobs (kind, owner_id, vehicle_id) values ('model_agent',$1,$2)", [A, v]);
+    await assert.rejects(db.query("insert into jobs (kind, owner_id, vehicle_id) values ('model_agent',$1,$2)", [A, v]), "one live job per car");
+    await fails(as(db, A, "select * from claim_jobs(1)"));
+    await db.exec("select set_config('request.uid', '', false)");
+    const first = (await db.query<{ id: string; attempts: number }>("select * from claim_jobs(5)")).rows;
+    assert.equal(first.length, 1); assert.equal(first[0].attempts, 1);
+    assert.equal((await db.query("select * from claim_jobs(5)")).rows.length, 0, "a running job isn't claimed twice");
+    await db.query("update jobs set locked_at = now() - interval '1 hour'");
+    assert.equal((await db.query<{ attempts: number }>("select * from claim_jobs(5)")).rows[0].attempts, 2, "stale run is retried");
+    await db.query("update jobs set locked_at = now() - interval '1 hour'");
+    assert.equal((await db.query("select * from claim_jobs(5)")).rows.length, 0);
+    assert.equal((await db.query<{ status: string }>("select status from jobs")).rows[0].status, "failed", "gives up after max_attempts");
+    assert.equal((await as(db, A, "select id from jobs")).length, 1, "owner can see their job");
+    assert.equal((await as(db, B, "select id from jobs")).length, 0);
+
+    await db.query("insert into error_events (source, message) values ('server','boom')");
+    await fails(as(db, A, "insert into error_events (source, message) values ('client','x')"));
+    assert.equal((await as(db, A, "select id from error_events")).length, 0);
+    assert.equal((await as(db, C, "select id from error_events")).length, 1, "moderator reads errors");
   });
 
   await t.test("storage writes limited to own folder", async () => {

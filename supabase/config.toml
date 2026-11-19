@@ -1,0 +1,39 @@
+# Local Supabase for development and CI (`supabase start`). Production settings live in the Supabase dashboard.
+project_id = "revmatch"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = false
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:3100"
+additional_redirect_urls = ["http://localhost:3000/auth/callback", "http://localhost:3100/auth/callback"]
+jwt_expiry = 3600
+enable_signup = true
+minimum_password_length = 8
+
+[auth.email]
+enable_signup = true
+# Off locally so tests can sign up without an inbox. Turn confirmations ON in production (see DEPLOY.md).
+enable_confirmations = false
+
+[analytics]
+enabled = false

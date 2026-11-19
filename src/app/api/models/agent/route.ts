@@ -1,8 +1,7 @@
 import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSessionUser, createServiceClient } from "@/lib/supabase/server";
-import { createSketchfabClient } from "@/lib/agent/sketchfab";
-import { runModelAgent, type AgentMod } from "@/lib/agent/modelAgent";
+import { enqueue, runJobs } from "@/lib/jobs";
 import { addWaiting, findReady, planFromLibrary, requestEntry } from "@/lib/agent/library";
 import { aiQuota } from "@/lib/quota";
 import type { Vehicle } from "@/lib/types";
@@ -55,41 +54,13 @@ export async function POST(req: Request) {
     }
   }
 
-  const log: string[] = lib ? [`Library model ready: ${lib.base!.name}`, "Fitting your mods…"] : [];
-  const pushLog = async (line: string) => {
-    log.push(`${new Date().toISOString().slice(11, 19)} ${line}`);
-    await admin.from("vehicles").update({ model_agent_log: log.slice(-40) }).eq("id", v.id);
-  };
-  if (!lib) await admin.from("vehicles").update({ model_status: "generating", model_source: "agent", model_agent_log: [] }).eq("id", v.id);
-
-  after(async () => {
-    try {
-      const plan = await runModelAgent(
-        { year: v.year, make: v.make, model: v.model, trim: v.trim, bodyStyle: v.body_style, paintHex, finish, generation: (v.ai_identification as { generation?: string } | null)?.generation ?? lib?.generation ?? null },
-        (mods ?? []) as AgentMod[],
-        (photos ?? []).map((p) => p.url),
-        {
-          sketchfab: createSketchfabClient(),
-          presetBase: lib ? { base: lib.base!, structure: lib.structure ?? "" } : null,
-          log: pushLog,
-          store: async (bytes, name) => {
-            const path = `${user.id}/${v.id}/agent/${name}`;
-            const { error } = await admin.storage.from("vehicle-models").upload(path, bytes, { contentType: "model/gltf-binary", upsert: true });
-            if (error) throw error;
-            return admin.storage.from("vehicle-models").getPublicUrl(path).data.publicUrl;
-          },
-        },
-      );
-      await admin.from("vehicles").update({
-        model_assembly: plan, model_url: plan.base.glbUrl, model_status: "ready", model_approved: false, model_source: lib ? "library" : "agent",
-        model_attribution: plan.attribution.join(" · "),
-      }).eq("id", v.id);
-      await pushLog("Finished: model ready for your review.");
-    } catch (e) {
-      await pushLog(`Failed: ${(e as Error).message}`);
-      // With a library base the stock model is still there; only the mod fitting failed.
-      await admin.from("vehicles").update({ model_status: lib ? "ready" : "failed" }).eq("id", v.id);
-    }
-  });
+  await admin.from("vehicles").update(lib
+    ? { model_agent_log: [`Library model ready: ${lib.base!.name}`, "Fitting your mods…"] }
+    : { model_status: "generating", model_source: "agent", model_agent_log: ["Queued: looking for a real model of your car…"] }).eq("id", v.id);
+  // The run takes minutes, so it goes on the job queue (survives a timed-out request; the cron retries).
+  const queued = await enqueue(admin, { kind: "model_agent", ownerId: user.id, vehicleId: v.id, payload: { useLibrary: !!lib } });
+  if (!queued) return NextResponse.json({ error: "A model is already being built for this vehicle." }, { status: 409 });
+  await quota.record();
+  after(() => runJobs(admin, 1)); // start now rather than waiting for the next cron tick
   return NextResponse.json({ started: true, library: !!lib });
 }

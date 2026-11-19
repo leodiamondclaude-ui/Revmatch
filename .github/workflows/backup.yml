@@ -1,0 +1,47 @@
+name: Database backup
+
+# Nightly logical backup of the production database, kept as an encrypted workflow artifact for 30 days.
+# Supabase's own backups depend on your plan (none you can download on Free), so this is the safety net.
+# Needs two repository secrets: SUPABASE_DB_URL (Project Settings -> Database -> connection string, session
+# pooler, with the password filled in) and BACKUP_PASSPHRASE (any long random string; store it somewhere safe).
+on:
+  schedule:
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check secrets
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$DB" ] || [ -z "$PASS" ]; then echo "::warning::Backups are off: add SUPABASE_DB_URL and BACKUP_PASSPHRASE secrets."; echo "skip=1" >> "$GITHUB_ENV"; fi
+      - uses: supabase/setup-cli@v1
+        if: env.skip != '1'
+        with:
+          version: latest
+      - name: Dump roles, schema and data
+        if: env.skip != '1'
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          mkdir backup
+          supabase db dump --db-url "$DB" --role-only -f backup/roles.sql
+          supabase db dump --db-url "$DB" -f backup/schema.sql
+          supabase db dump --db-url "$DB" --data-only --use-copy -f backup/data.sql
+          tar czf backup.tgz backup
+      - name: Encrypt
+        if: env.skip != '1'
+        env:
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: gpg --batch --yes --pinentry-mode loopback --passphrase "$PASS" --symmetric --cipher-algo AES256 -o "revmatch-$(date -u +%F).tgz.gpg" backup.tgz
+      - uses: actions/upload-artifact@v4
+        if: env.skip != '1'
+        with:
+          name: db-backup
+          path: revmatch-*.tgz.gpg
+          retention-days: 30
