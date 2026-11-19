@@ -232,7 +232,7 @@ export function DriveConsole({ userId, vehicles, primaryId, settings }: { userId
             {phase === "saving" && <button type="button" className="btn-primary w-full !py-5" disabled><Loader2 className="animate-spin" /> Analysing drive…</button>}
           </div>
           {phase === "recording" && <p className="mt-3 text-center text-xs text-muted">Keep this screen open. Browsers pause GPS when the tab is in the background or the phone is locked{"wakeLock" in (typeof navigator !== "undefined" ? navigator : {}) ? " (the screen is kept awake while recording)" : ""}.</p>}
-          {phase === "recording" && (recorder.current?.gapSeconds ?? 0) >= 5 && <p className="mt-2 rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-center text-xs text-warn" role="status">Recording paused for about {Math.max(1, Math.round((recorder.current?.gapSeconds ?? 0) / 60))} min while the screen was off or another app was open. That part of the drive will have a gap.</p>}
+          {phase === "recording" && (recorder.current?.gapSeconds ?? 0) >= 5 && <p className="mt-2 rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-center text-xs text-warn" role="status">Recording paused for about {Math.max(1, Math.round((recorder.current?.gapSeconds ?? 0) / 60))} min while the screen was off or another app was open. That part of the drive will have a gap. The RevMatch phone app records with the screen off.</p>}
         </section>
 
         <div className="space-y-5">
@@ -260,7 +260,7 @@ export function DriveConsole({ userId, vehicles, primaryId, settings }: { userId
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="font-semibold">OBD-II adapter <span className="chip ml-1">optional</span></div>
-                <div className="text-xs text-muted">{obd.state === "on" ? `${obd.name} · ${obd.msg}` : isIOS ? "iPhone and iPad browsers can't connect to Bluetooth adapters, so OBD-II isn't available here. GPS recording still works." : "BLE ELM327-compatible adapters via Web Bluetooth (Chrome or Edge on Android or desktop)."}</div>
+                <div className="text-xs text-muted">{obd.state === "on" ? `${obd.name} · ${obd.msg}` : isIOS ? "iPhone and iPad browsers can't connect to Bluetooth adapters. The RevMatch phone app can; GPS recording still works here." : "BLE ELM327-compatible adapters via Web Bluetooth (Chrome or Edge on Android or desktop)."}</div>
               </div>
               {obd.state === "on" ? <button type="button" className="btn-ghost" onClick={disconnectObd}><BluetoothOff size={16} /> Disconnect</button>
                 : <button type="button" className="btn-ghost" onClick={connectObd} disabled={obd.state === "connecting" || isIOS}>{obd.state === "connecting" ? <Loader2 size={16} className="animate-spin" /> : <Bluetooth size={16} />} Connect</button>}
