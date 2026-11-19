@@ -1,6 +1,10 @@
 # RevMatch
 
-A premium automotive platform: digital garage, interactive 3D builds, phone-GPS drive telemetry with optional OBD-II, and a social network for the car scene.
+A garage for car people: a build page for every car (drafted from four photos), drive recording on your phone with optional OBD-II, and a small social network with friends, likes, invites and car-meet QR codes.
+
+- **Going live:** [DEPLOY.md](DEPLOY.md), step by step
+- **Running it:** [docs/OPERATIONS.md](docs/OPERATIONS.md) covers errors, background jobs, backups and tests
+- **Phone app:** [mobile/README.md](mobile/README.md)
 
 Built with **Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · React Three Fiber · Supabase · Recharts · Leaflet**.
 
@@ -15,13 +19,14 @@ npm run dev
 ```
 
 1. Create a Supabase project.
-2. Apply the schema: `supabase db push`, or paste `supabase/migrations/0001_init.sql` into the SQL editor. It creates tables, row-level security, helper functions, triggers and storage buckets.
+2. Apply the schema: `supabase link` then `supabase db push`, or paste each file in `supabase/migrations/` (0001 to 0007, in order) into the SQL editor. They create the tables, row-level security, helper functions, triggers and storage buckets.
 3. In **Authentication → URL configuration**, add `http://localhost:3000/auth/callback` (and your production URL) to the redirect allow-list.
 4. Visit `/setup` to see which integrations are configured.
 
 ```bash
-npm test          # analysis engine, OBD parser, and RLS policies on an in-process Postgres
+npm test          # analysis engine, OBD parser, and every access rule on an in-process Postgres
 npm run build
+npm run e2e       # browser tests against the build (full flow needs E2E_FULL=1 and a real Supabase)
 ```
 
 ---
@@ -32,16 +37,15 @@ npm run build
 |---|---|---|
 | Accounts, data, photo storage | **Supabase** (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) | App redirects to `/setup` |
 | AI vehicle identification | **Anthropic API** (`ANTHROPIC_API_KEY`), Claude vision with structured output | Wizard shows a notice; enter details manually |
-| Existing 3D model search/import | **Sketchfab Data API** token (`SKETCHFAB_API_TOKEN`) + `SUPABASE_SERVICE_ROLE_KEY` | Option disabled; parametric model used |
-| AI image-to-3D generation | **Meshy** API key (`MESHY_API_KEY`) + `SUPABASE_SERVICE_ROLE_KEY` | Option disabled; parametric model used |
-| AI model agent (fallback) | `ANTHROPIC_API_KEY` + `SKETCHFAB_API_TOKEN` + `SUPABASE_SERVICE_ROLE_KEY` | Option disabled |
+| "Find my car" 3D model + model library | `ANTHROPIC_API_KEY` + `SUPABASE_SERVICE_ROLE_KEY` + `SKETCHFAB_API_TOKEN` and/or `MESHY_API_KEY`, plus `CRON_SECRET` for the scheduled jobs | Car page leads with the owner's photos and the built-in studio model |
+| Error tracking, job queue, AI cost limits | `SUPABASE_SERVICE_ROLE_KEY` (optional `ERROR_WEBHOOK_URL` for Slack/Discord pings) | Errors go to the server log only; AI limits aren't enforced |
+| Background drive recording, OBD-II on iPhone | The phone app in `mobile/` | Web recording works while the screen is on |
 | Maps | CARTO dark basemap tiles + OpenStreetMap data (no key; attribution shown) | — |
 | Drive recording | Browser **Geolocation** permission, HTTPS | Drive screen shows the error |
 | Peak-g estimate | **DeviceMotion** permission (prompted on iOS) | Omitted; GPS/OBD values used |
 | Screen stays on while recording | **Screen Wake Lock API** (most modern mobile browsers) | Recording pauses if the screen locks |
 | OBD-II | **BLE ELM327-compatible adapter** + **Web Bluetooth** (Chrome/Edge on Android, Windows, macOS, ChromeOS) | GPS-only. Not supported: iOS browsers, Bluetooth Classic (SPP) and Wi-Fi adapters |
 
-> The Meshy request in `src/lib/models3d.ts` was checked against Meshy's docs in November 2026. It uses Meshy 7.1 with 2K geometry, PBR textures, no remesh and GLB output.
 
 ---
 
@@ -148,10 +152,10 @@ Every car generation only needs its stock model built once, so RevMatch prepares
 - Interrupted recordings stay as `recording` and can be **finalized** from stored samples. Any drive can be **recomputed** after changing settings.
 
 ### Automatic trip detection
-While the Drive screen is open, a low-cost location watch looks for sustained speed above a threshold, then asks or auto-starts according to your settings. Auto-started drives stop after a configurable idle time. **Limitation:** browsers suspend geolocation in the background, so true background detection needs a native wrapper (e.g. Capacitor with a background-geolocation plugin). The recorder and analysis modules are UI-independent, so they're ready for that.
+While the Drive screen is open, a low-cost location watch looks for sustained speed above a threshold, then asks or auto-starts according to your settings. Auto-started drives stop after a configurable idle time. **Limitation:** browsers suspend geolocation in the background, so the web recorder warns about gaps when the screen was off. The phone app in `mobile/` records in the background and sends its samples through the same analysis (`POST /api/drives/:id/finalize`).
 
 ### OBD-II
-`Elm327` connects over BLE GATT, initialises the adapter (`ATZ`, `ATE0`, `ATSP0`…), reads the supported-PID bitmaps (`0100`/`0120`), and polls **only supported PIDs**: RPM, speed, throttle, load, coolant, IAT, MAP, MAF, timing and fuel level. Unsupported PIDs appear as "n/a, unsupported", never as zero. OBD speed replaces GPS speed for timing while connected.
+`Elm327` connects over BLE GATT, initialises the adapter (`ATZ`, `ATE0`, `ATSP0`…), reads the supported-PID bitmaps (`0100`/`0120`), and polls **only supported PIDs**: RPM, speed, throttle, load, coolant, IAT, MAP, MAF, timing and fuel level. Unsupported PIDs appear as "n/a, unsupported", never as zero. OBD speed replaces GPS speed for timing while connected. The phone app (`mobile/src/lib/obd.ts`) uses the same commands over react-native-ble-plx, so it also works on iPhone.
 
 ### QR codes
 Each vehicle has a random 18-hex-character `slug`. The QR encodes only `/v/<slug>`, rendered client-side (PNG 1024 px and SVG download, or the Web Share API). The page shows only what RLS lets an anonymous visitor read. A private vehicle shows "unavailable" without confirming it exists.
