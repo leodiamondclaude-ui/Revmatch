@@ -5,10 +5,16 @@ import { Camera, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { prepareImage, uid } from "@/lib/image";
 import { accentFromPaint, accentVars, PAINT_SWATCHES } from "@/lib/color";
-import type { Profile, UserSettings, Vehicle } from "@/lib/types";
+import type { NotificationKind, Profile, UserSettings, Vehicle } from "@/lib/types";
 import { Avatar } from "@/components/ui/Avatar";
 
 const DEFAULTS = { units: "imperial", auto_detect: false, auto_action: "prompt", auto_min_speed_kph: 20, auto_min_duration_s: 20, auto_stop_idle_s: 180, min_sample_distance_m: 3, max_accuracy_m: 35, default_drive_visibility: "private", default_share_route: false, endpoint_privacy_m: 400 } as const;
+
+const NOTIFY: [NotificationKind, string][] = [
+  ["like", "Someone likes your post"], ["comment", "Someone comments on your post"], ["friend_request", "Friend requests"],
+  ["friend_accept", "Someone accepts your friend request"], ["follow", "New followers"], ["follow_request", "Follow requests (private profile)"],
+  ["invite_joined", "Someone joins with your invite"],
+];
 
 export function SettingsForm({ profile, settings, vehicles, email }: { profile: Profile; settings: UserSettings | null; vehicles: Vehicle[]; email: string }) {
   const router = useRouter();
@@ -123,6 +129,17 @@ export function SettingsForm({ profile, settings, vehicles, email }: { profile: 
             <span className="text-sm">Share trimmed route maps by default</span></label>
         </div>
         <p className="mt-3 text-xs text-dim">Raw GPS samples are only readable by you. Changing the privacy radius applies to new drives; use “recompute” on older drives to apply it.</p>
+      </section>
+
+      <section id="notifications" className="panel p-5">
+        <h2 className="h-display mb-1 text-xl">Notifications</h2>
+        <p className="mb-4 text-sm text-muted">What shows up under the bell. Turning one off stops new ones; it doesn&apos;t delete old ones.</p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {NOTIFY.map(([k, l]) => (
+            <label key={k} className="flex items-center gap-3 rounded-lg border border-line p-3"><input type="checkbox" checked={s.notify?.[k] !== false} onChange={(e) => setS({ ...s, notify: { ...(s.notify ?? {}), [k]: e.target.checked } })} className="accent-[var(--accent)]" />
+              <span className="text-sm">{l}</span></label>
+          ))}
+        </div>
       </section>
 
       <div className="sticky bottom-20 z-10 flex items-center justify-end gap-3 lg:bottom-4">

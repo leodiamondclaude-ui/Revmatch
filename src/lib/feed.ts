@@ -5,9 +5,10 @@ import type { FeedPost } from "@/components/social/PostCard";
 const SELECT = "*, author:profiles!posts_author_id_fkey(id, username, display_name, avatar_url), vehicle:vehicles(id, slug, year, make, model, nickname, exterior_color_hex)";
 
 /** Loads posts visible to the caller (RLS-enforced) and decorates them with like/comment counts. */
-export async function loadPosts(supabase: SupabaseClient, opts: { authorIds?: string[]; limit?: number; before?: string } = {}) {
+export async function loadPosts(supabase: SupabaseClient, opts: { authorIds?: string[]; ids?: string[]; limit?: number; before?: string } = {}) {
   let q = supabase.from("posts").select(SELECT).order("created_at", { ascending: false }).limit(opts.limit ?? 30);
   if (opts.authorIds) q = q.in("author_id", opts.authorIds.length ? opts.authorIds : ["00000000-0000-0000-0000-000000000000"]);
+  if (opts.ids) q = q.in("id", opts.ids);
   if (opts.before) q = q.lt("created_at", opts.before);
   const { data } = await q;
   const posts = (data ?? []) as FeedPost[];

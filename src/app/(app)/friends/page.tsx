@@ -40,7 +40,10 @@ export default async function Friends({ searchParams }: { searchParams: Promise<
 
   return (
     <div className="space-y-6">
-      <h1 className="h-display text-3xl sm:text-4xl">Friends &amp; network</h1>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h1 className="h-display text-3xl sm:text-4xl">Friends &amp; network</h1>
+        <Link href="/friends/invite" className="btn-primary">Invite friends</Link>
+      </div>
       <form className="flex gap-2" action="/friends">
         <input name="q" defaultValue={q} className="input" placeholder="Search by username…" autoComplete="off" />
         <button className="btn-primary">Search</button>
@@ -69,7 +72,7 @@ export default async function Friends({ searchParams }: { searchParams: Promise<
         {tab === "friends" && <>
           {friends.map((p) => <Person key={p.id} p={p} />)}
           {outgoing.map((r) => <Person key={r.addressee_id} p={r.addressee}><span className="chip">pending</span></Person>)}
-          {!friends.length && !outgoing.length && <p className="text-sm text-muted">No friends yet. Search for drivers above.</p>}
+          {!friends.length && !outgoing.length && <p className="text-sm text-muted">No friends yet. Search for drivers above, or <Link href="/friends/invite" className="text-accent">send an invite link</Link>.</p>}
         </>}
         {tab === "followers" && ((followers.data ?? []) as unknown as { follower: P }[]).map((r) => <Person key={r.follower.id} p={r.follower}><RequestActions me={me} other={r.follower.id} kind="remove-follower" /></Person>)}
         {tab === "following" && ((following.data ?? []) as unknown as { following: P; status: string }[]).map((r) => <Person key={r.following.id} p={r.following}>{r.status === "pending" && <span className="chip">requested</span>}</Person>)}

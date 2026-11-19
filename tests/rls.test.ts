@@ -27,7 +27,7 @@ const C = "00000000-0000-0000-0000-00000000000c";
 async function setup() {
   const db = new PGlite({ extensions: { pgcrypto } });
   await db.exec(STUBS);
-  for (const f of ["0001_init.sql", "0002_model_agent.sql", "0003_model_library.sql", "0004_build_sheet.sql", "0005_trust_safety.sql"]) await db.exec(readFileSync(`supabase/migrations/${f}`, "utf8"));
+  for (const f of ["0001_init.sql", "0002_model_agent.sql", "0003_model_library.sql", "0004_build_sheet.sql", "0005_trust_safety.sql", "0006_notifications_invites.sql"]) await db.exec(readFileSync(`supabase/migrations/${f}`, "utf8"));
   await db.exec(`
     grant usage on schema public, auth, storage to anon, authenticated;
     grant all on all tables in schema public to authenticated; grant select on all tables in schema public to anon;
@@ -176,6 +176,55 @@ test("RLS end to end", async (t) => {
     const c = await as<{ likes: string; comments: string; liked: boolean }>(db, B, "select * from post_counts($1)", [[p]]);
     assert.equal(Number(c[0].likes), 1); assert.equal(Number(c[0].comments), 1); assert.equal(c[0].liked, true);
     assert.equal((await as(db, A, "delete from post_comments where post_id=$1 returning id", [p])).length, 1, "post author can moderate");
+  });
+
+  await t.test("notifications: likes, comments and requests notify the right person, once", async () => {
+    await db.query("update profiles set is_private=false where id=$1", [C]);
+    const p = (await as<{ id: string }>(db, C, "insert into posts (author_id, body, visibility) values ($1,'carol public','public') returning id", [C]))[0].id;
+    await as(db, A, "insert into post_likes (post_id, user_id) values ($1,$2)", [p, A]);
+    await as(db, A, "delete from post_likes where post_id=$1 and user_id=$2", [p, A]);
+    await as(db, A, "insert into post_likes (post_id, user_id) values ($1,$2)", [p, A]);
+    await as(db, A, "insert into post_comments (post_id, author_id, body) values ($1,$2,'clean')", [p, A]);
+    await as(db, C, "insert into post_likes (post_id, user_id) values ($1,$2)", [p, C]); // own like: no notification
+    const mine = await as<{ kind: string; actor_id: string }>(db, C, "select kind, actor_id from notifications where post_id=$1 order by created_at", [p]);
+    assert.deepEqual(mine.map((n) => n.kind).sort(), ["comment", "like"], "re-like doesn't duplicate; own like is silent");
+    assert.equal((await as(db, A, "select id from notifications where user_id=$1", [C])).length, 0, "others can't read them");
+    await fails(as(db, A, "insert into notifications (user_id, actor_id, kind) values ($1,$2,'like')", [C, A]));
+    await fails(as(db, C, "update notifications set kind='follow'"));
+    assert.equal((await as(db, C, "update notifications set read_at=now() where post_id=$1 returning id", [p])).length, 2, "recipient marks read");
+    await as(db, C, "update user_settings set notify='{\"like\": false}' where user_id=$1", [C]);
+    const p2 = (await as<{ id: string }>(db, C, "insert into posts (author_id, body, visibility) values ($1,'again','public') returning id", [C]))[0].id;
+    await as(db, A, "insert into post_likes (post_id, user_id) values ($1,$2)", [p2, A]);
+    assert.equal((await as(db, C, "select id from notifications where post_id=$1", [p2])).length, 0, "opt-out respected");
+  });
+
+  await t.test("invites: personal links make friends, meet codes follow the host, limits hold", async () => {
+    await as(db, A, "insert into invites (code, owner_id, kind) values ('ALICEFRIEND', $1, 'personal')", [A]);
+    await as(db, A, "insert into invites (code, owner_id, kind, label, max_uses) values ('MEET2026', $1, 'meet', 'Cars & Coffee', 1)", [A]);
+    await fails(as(db, B, "insert into invites (code, owner_id) values ('NOTMINE1', $1)", [A]));
+    await fails(as(db, A, "update invites set uses = 99 where code='MEET2026'"));
+    assert.equal((await as(db, B, "select code from invites")).length, 0, "invite list is owner-only");
+    const info = await as<{ host_username: string; valid: boolean; label: string }>(db, null, "select * from invite_info('MEET2026')");
+    assert.equal(info[0].host_username, "alice"); assert.equal(info[0].valid, true); assert.equal(info[0].label, "Cars & Coffee");
+
+    const D = "00000000-0000-0000-0000-00000000000d", E = "00000000-0000-0000-0000-00000000000e", F = "00000000-0000-0000-0000-00000000000f";
+    await db.query("insert into auth.users (id, email, raw_user_meta_data) values ($1,'d@x.test',$2)", [D, JSON.stringify({ username: "dave", invite: "ALICEFRIEND" })]);
+    await db.query("insert into auth.users (id, email, raw_user_meta_data) values ($1,'e@x.test',$2)", [E, JSON.stringify({ username: "erin", invite: "MEET2026" })]);
+    await db.query("insert into auth.users (id, email, raw_user_meta_data) values ($1,'f@x.test',$2)", [F, JSON.stringify({ username: "frank", invite: "MEET2026" })]);
+    assert.equal((await as<{ ok: boolean }>(db, D, "select are_friends($1,$2) ok", [A, D]))[0].ok, true, "personal invite: already friends");
+    assert.equal((await as(db, E, "select 1 from follows where follower_id=$1 and following_id=$2 and status='accepted'", [E, A])).length, 1, "meet invite: follows host");
+    assert.equal((await as(db, F, "select 1 from follows where follower_id=$1 and following_id=$2", [F, A])).length, 0, "max_uses reached");
+    assert.equal((await as<{ invited_by: string | null }>(db, F, "select invited_by from profiles where id=$1", [F]))[0].invited_by, null);
+    assert.equal((await as<{ valid: boolean }>(db, null, "select valid from invite_info('MEET2026')"))[0].valid, false);
+    const joined = await as<{ kind: string }>(db, A, "select kind from notifications where kind='invite_joined'");
+    assert.equal(joined.length, 2, "host told when someone joins");
+
+    await as(db, A, "update invites set revoked_at=now() where code='ALICEFRIEND'");
+    assert.equal((await as<{ r: string }>(db, C, "select accept_invite('ALICEFRIEND') r"))[0].r, "invalid", "revoked link stops working");
+
+    await db.exec("update app_settings set value='true' where key='invite_only'");
+    await assert.rejects(db.query("insert into auth.users (id, email, raw_user_meta_data) values (gen_random_uuid(),'g@x.test','{\"username\":\"gina\"}')"));
+    await db.exec("update app_settings set value='false' where key='invite_only'");
   });
 
   await t.test("storage writes limited to own folder", async () => {

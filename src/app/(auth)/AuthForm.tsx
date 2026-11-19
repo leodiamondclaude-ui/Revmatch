@@ -8,6 +8,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/dashboard";
+  const inviteParam = params.get("invite");
+  const invite = inviteParam && /^[A-Za-z0-9]{6,16}$/.test(inviteParam) ? inviteParam : null;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -27,9 +29,9 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         if (taken) throw new Error("That username is taken.");
         const { data, error } = await supabase.auth.signUp({
           email, password,
-          options: { data: { username: clean }, emailRedirectTo: `${window.location.origin}/auth/callback?next=/garage/new` },
+          options: { data: { username: clean, ...(invite ? { invite } : {}) }, emailRedirectTo: `${window.location.origin}/auth/callback?next=/garage/new` },
         });
-        if (error) throw error;
+        if (error) throw /database error/i.test(error.message) ? new Error(invite ? "That invite stopped working. Ask for a new link." : "Sign-ups are invite-only right now. Ask a member for an invite link.") : error;
         if (!data.session) { setNotice("Check your inbox to confirm your email, then sign in."); return; }
         router.replace("/garage/new");
       } else {
@@ -59,6 +61,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         <h1 className="h-display text-3xl">{mode === "login" ? "Welcome back" : "Open your garage"}</h1>
         <p className="mt-1 text-sm text-muted">{mode === "login" ? "Sign in to your garage and telemetry." : "Free account. Your data stays private until you choose to share it."}</p>
       </div>
+      {mode === "signup" && invite && <p className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-sm">You&apos;re signing up with an invite. You&apos;ll be connected with the person who sent it.</p>}
       {mode === "signup" && (
         <label className="block space-y-1.5">
           <span className="label">Username</span>

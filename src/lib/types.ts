@@ -13,6 +13,32 @@ export interface Profile {
   primary_vehicle_id: string | null;
   is_moderator?: boolean;
   suspended_at?: string | null;
+  invited_by?: string | null;
+  joined_via?: string | null;
+  created_at: string;
+}
+
+export type NotificationKind = "like" | "comment" | "friend_request" | "friend_accept" | "follow" | "follow_request" | "invite_joined";
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  actor_id: string | null;
+  kind: NotificationKind;
+  post_id: string | null;
+  comment_id: string | null;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface Invite {
+  code: string;
+  owner_id: string;
+  kind: "personal" | "meet";
+  label: string | null;
+  max_uses: number | null;
+  uses: number;
+  expires_at: string | null;
+  revoked_at: string | null;
   created_at: string;
 }
 
@@ -29,6 +55,8 @@ export interface UserSettings {
   default_drive_visibility: Visibility;
   default_share_route: boolean;
   endpoint_privacy_m: number;
+  /** Per-kind opt-outs: { like: false } turns like notifications off. Missing means on. */
+  notify?: Partial<Record<NotificationKind, boolean>>;
 }
 
 export type BodyStyle = "coupe" | "sedan" | "hatch" | "wagon" | "suv" | "truck";

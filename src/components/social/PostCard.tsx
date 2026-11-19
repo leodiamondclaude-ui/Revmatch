@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Gauge, Heart, MessageCircle, Plus, Send, Trash2, Wrench } from "lucide-react";
 import { useSupabase } from "@/lib/supabase/client";
 import { accentFromPaint } from "@/lib/color";
@@ -20,10 +20,10 @@ type Comment = { id: string; body: string; created_at: string; author_id: string
 
 const KIND = { new_vehicle: { icon: Plus, label: "New in the garage" }, new_mod: { icon: Wrench, label: "Mod installed" }, drive: { icon: Gauge, label: "Drive logged" }, update: null, photo: null } as const;
 
-export function PostCard({ post, viewerId, units }: { post: FeedPost; viewerId: string | null; units: Units }) {
+export function PostCard({ post, viewerId, units, defaultOpen = false }: { post: FeedPost; viewerId: string | null; units: Units; defaultOpen?: boolean }) {
   const [liked, setLiked] = useState(post.liked);
   const [likes, setLikes] = useState(post.likes);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [count, setCount] = useState(post.comments);
   const [text, setText] = useState("");
@@ -43,9 +43,12 @@ export function PostCard({ post, viewerId, units }: { post: FeedPost; viewerId: 
       : await supabase.from("post_likes").delete().eq("post_id", post.id).eq("user_id", viewerId);
     if (error) { setLiked(!next); setLikes((n) => n + (next ? -1 : 1)); }
   }
+  useEffect(() => { if (defaultOpen) fetchComments(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   async function loadComments() {
     setOpen((o) => !o);
-    if (comments) return;
+    if (!comments) await fetchComments();
+  }
+  async function fetchComments() {
     const { data } = await supabase.from("post_comments").select("id, body, created_at, author_id, author:profiles!post_comments_author_id_fkey(username, avatar_url, display_name)").eq("post_id", post.id).order("created_at");
     setComments((data ?? []) as unknown as Comment[]);
   }
