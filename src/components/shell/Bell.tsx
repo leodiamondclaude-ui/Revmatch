@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Bell as BellIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -9,15 +9,16 @@ import { createClient } from "@/lib/supabase/client";
 export function Bell({ userId, initial }: { userId: string; initial: number }) {
   const [count, setCount] = useState(initial);
   const path = usePathname();
+  const instance = useId(); // the bell renders twice (rail + mobile header); each needs its own channel
   useEffect(() => setCount(initial), [initial]);
   useEffect(() => { if (path === "/notifications") setCount(0); }, [path]);
   useEffect(() => {
     const sb = createClient();
-    const ch = sb.channel(`notifications:${userId}`)
+    const ch = sb.channel(`notifications:${userId}:${instance}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` }, () => setCount((c) => c + 1))
       .subscribe();
     return () => { sb.removeChannel(ch); };
-  }, [userId]);
+  }, [userId, instance]);
   return (
     <Link href="/notifications" className="relative grid h-9 w-9 place-items-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-ink" aria-label={count ? `Notifications, ${count} unread` : "Notifications"}>
       <BellIcon size={19} />
