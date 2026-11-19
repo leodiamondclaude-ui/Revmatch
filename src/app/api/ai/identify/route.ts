@@ -4,6 +4,7 @@ import { z } from "zod";
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/supabase/server";
 import { MOD_CATEGORIES } from "@/lib/types";
+import { aiQuota } from "@/lib/quota";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -48,7 +49,22 @@ const Identification = z.object({
     window_tint: z.enum(["none", "light", "medium", "dark", "limo"]),
     stripe: z.enum(["none", "racing", "side"]),
     stripe_color_hex: z.string().nullable(),
+    headlights: z.enum(["white", "warm", "yellow", "blue", "smoked", "not_visible"]).describe("Colour of the headlight light or lens"),
+    taillights: z.string().nullable().describe("Short description of taillight tint and shape, if the rear is visible"),
+    badges: z.string().nullable().describe("Factory badges, debadged, or aftermarket badges, if visible"),
   }),
+  interior: z.object({
+    seat_color_name: z.string().nullable(),
+    seat_color_hex: z.string().nullable(),
+    seat_material: z.enum(["leather", "alcantara", "cloth", "carbon_buckets", "vinyl", "not_visible"]),
+    steering_wheel: z.string().nullable(),
+    gauges: z.string().nullable(),
+    lighting: z.string().nullable(),
+    console: z.string().nullable(),
+  }).nullable().describe("Only when a driver's-seat photo is included; null otherwise"),
+  engine_bay: z.object({
+    engine: z.string().nullable().describe("Short description of the engine if recognisable"),
+  }).nullable().describe("Only when an engine bay photo is included; null otherwise"),
   likely_modifications: z.array(z.object({
     category: z.enum(cats),
     name: z.string(),
@@ -67,6 +83,9 @@ Rules:
 - Leave a field null rather than guessing when it can't be determined from the photos.
 - Only list a modification when it visibly differs from how that model left the factory. Factory options (e.g. an OEM performance package) are not modifications.
 - Colours: give the dominant body colour as a hex value as it appears under neutral light.
+- Photos are labelled with their view: front three-quarter (driver's side), driver's seat (interior), rear three-quarter (passenger side) and engine bay. Read the interior fields only from the driver's-seat photo and the engine fields only from the engine bay photo; set those objects to null when that photo is missing.
+- Engine bay modifications (intakes, turbos, intercooler piping, catch cans, braces, coloured hoses) go in likely_modifications like any other mod.
+- Keep descriptions under eight words.
 - The owner will review and correct everything you return, so be candid about uncertainty.`;
 
 export async function POST(req: Request) {
@@ -77,11 +96,14 @@ export async function POST(req: Request) {
   }
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid images payload" }, { status: 400 });
+  const quota = await aiQuota(user.id, "identify");
+  if (!quota.ok) return NextResponse.json({ error: quota.message }, { status: 429 });
 
   const client = new Anthropic();
   const content: Anthropic.ContentBlockParam[] = [];
   for (const img of parsed.data.images) {
-    content.push({ type: "text", text: `Photo — ${img.angle.replace("_", " ")} view:` });
+    const label = { front_3q: "front three-quarter (driver's side)", rear_3q: "rear three-quarter (passenger side)", interior: "driver's seat (interior)", engine: "engine bay" }[img.angle] ?? img.angle.replace("_", " ");
+    content.push({ type: "text", text: `Photo, ${label} view:` });
     content.push({ type: "image", source: { type: "base64", media_type: img.media_type, data: img.data } });
   }
   content.push({ type: "text", text: "Identify this vehicle and its visible modifications." });
@@ -99,6 +121,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "The model declined to analyse these images." }, { status: 422 });
     }
     if (!response.parsed_output) return NextResponse.json({ error: "Could not parse identification." }, { status: 502 });
+    await quota.record();
     return NextResponse.json({ result: response.parsed_output, model: response.model });
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) return NextResponse.json({ error: "AI service is busy. Try again shortly." }, { status: 429 });

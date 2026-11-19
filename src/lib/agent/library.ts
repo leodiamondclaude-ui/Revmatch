@@ -6,7 +6,8 @@ import { runLibraryAgent } from "./libraryAgent";
 import { bestMatch, CATALOG, entryKey, normMake, type Body } from "./catalog";
 import type { Base } from "./baseTools";
 import type { LibraryLook } from "./libraryAgent";
-export { planFromLibrary } from "./libraryPlan";
+import { planFromLibrary } from "./libraryPlan";
+export { planFromLibrary };
 
 /** Shared library of stock models: lookup, queueing, and the build step the scheduled job runs. */
 
@@ -61,6 +62,31 @@ export async function requestEntry(admin: SupabaseClient, car: { year: number | 
   return data?.id ?? null;
 }
 
+/** Remember that a car is waiting for this entry, so the model is applied to it once it's built. */
+export async function addWaiting(admin: SupabaseClient, entryId: string, vehicleId: string) {
+  const { data } = await admin.from("model_library").select("waiting").eq("id", entryId).maybeSingle();
+  const waiting = [...new Set([...(data?.waiting ?? []), vehicleId])];
+  await admin.from("model_library").update({ waiting }).eq("id", entryId);
+}
+
+/** Apply a finished entry to every car that was waiting for it (or tell them it couldn't be built). */
+async function settleWaiting(admin: SupabaseClient, entryId: string, ready: boolean) {
+  const { data: row } = await admin.from("model_library").select("*").eq("id", entryId).maybeSingle<LibraryRow & { waiting: string[] }>();
+  if (!row?.waiting?.length) return;
+  const { data: cars } = await admin.from("vehicles").select("id, model_config, exterior_color_hex, model_agent_log").in("id", row.waiting);
+  for (const c of cars ?? []) {
+    const log = [...((c.model_agent_log as string[] | null) ?? [])];
+    if (ready) {
+      const plan = planFromLibrary(row, c.model_config?.paint ?? c.exterior_color_hex, c.model_config?.finish ?? null);
+      await admin.from("vehicles").update({ model_assembly: plan, model_url: plan.base.glbUrl, model_status: "ready", model_source: "library", model_approved: false,
+        model_attribution: plan.attribution.join(" · "), model_agent_log: [...log, "Your car's model is ready for review."].slice(-40) }).eq("id", c.id);
+    } else {
+      await admin.from("vehicles").update({ model_status: "failed", model_agent_log: [...log, "We couldn't find or build a model of this car yet."].slice(-40) }).eq("id", c.id);
+    }
+  }
+  await admin.from("model_library").update({ waiting: [] }).eq("id", entryId);
+}
+
 /** Claim up to n queued entries, most-requested first. Entries stuck "building" for over an hour are retried. */
 export async function claimNext(admin: SupabaseClient, n: number) {
   const stale = new Date(Date.now() - 60 * 60_000).toISOString();
@@ -98,6 +124,7 @@ export async function buildEntry(admin: SupabaseClient, row: LibraryRow) {
     if ("found" in r) {
       await admin.from("model_library").update({ status: "none_found", last_error: r.reason, updated_at: new Date().toISOString() }).eq("id", row.id);
       await pushLog(`Nothing suitable: ${r.reason}`);
+      await settleWaiting(admin, row.id, false);
       return "none_found" as const;
     }
     await admin.from("model_library").update({
@@ -108,10 +135,12 @@ export async function buildEntry(admin: SupabaseClient, row: LibraryRow) {
       last_error: null, built_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     }).eq("id", row.id);
     await pushLog(`Ready: ${r.base.name} (${r.source}).`);
+    await settleWaiting(admin, row.id, true);
     return "ready" as const;
   } catch (e) {
-    await admin.from("model_library").update({ status: "failed", last_error: (e as Error).message, updated_at: new Date().toISOString() }).eq("id", row.id);
+    await admin.from("model_library").update({ status: row.attempts + 1 >= 3 ? "failed" : "queued", last_error: (e as Error).message, updated_at: new Date().toISOString() }).eq("id", row.id);
     await pushLog(`Failed: ${(e as Error).message}`);
+    if (row.attempts + 1 >= 3) await settleWaiting(admin, row.id, false);
     return "failed" as const;
   }
 }

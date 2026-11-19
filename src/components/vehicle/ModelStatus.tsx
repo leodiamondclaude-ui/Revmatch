@@ -38,15 +38,15 @@ export function ModelStatus({ vehicle }: { vehicle: Vehicle }) {
       <div className="flex items-center gap-3 rounded-xl border border-accent/40 bg-accent/10 p-3 text-sm">
         <Loader2 className="animate-spin text-accent" size={18} />
         <div className="flex-1">
-          {vehicle.model_source === "agent" ? "The model agent is finding and assembling your car…" : <>Generating AI 3D model from your photos{progress != null ? ` · ${progress}%` : "…"}</>} <span className="text-muted">You can leave this page.</span>
-          {vehicle.model_source === "agent" && log.length > 0 && <ul className="mt-2 space-y-0.5 font-mono text-[11px] text-muted">{log.slice(-5).map((l, i) => <li key={i}>{l}</li>)}</ul>}
+          {vehicle.model_source === "agent" || vehicle.model_source === "library" ? "Finding a real model of your car…" : <>Generating a 3D model{progress != null ? ` · ${progress}%` : "…"}</>} <span className="text-muted">You can leave this page.</span>
+          {(vehicle.model_source === "agent" || vehicle.model_source === "library") && log.length > 0 && <ul className="mt-2 space-y-0.5 font-mono text-[11px] text-muted">{log.slice(-5).map((l, i) => <li key={i}>{l}</li>)}</ul>}
           {err && <div className="text-xs text-warn">{err}</div>}
         </div>
       </div>
     );
   }
   if (vehicle.model_status === "failed") {
-    return <div className="rounded-xl border border-bad/40 bg-bad/10 p-3 text-sm">3D model import or generation failed. The built-in model is shown instead. You can retry from Edit → 3D.</div>;
+    return <div className="rounded-xl border border-bad/40 bg-bad/10 p-3 text-sm">We couldn&apos;t find or build a model of this car yet. Your photos and the built-in model are shown instead. You can try again from Edit → 3D model.</div>;
   }
   if (vehicle.model_url && !vehicle.model_approved) {
     return (
@@ -54,7 +54,7 @@ export function ModelStatus({ vehicle }: { vehicle: Vehicle }) {
         <div className="flex-1">
           <b>Review your {vehicle.model_source === "ai" ? "AI-generated" : vehicle.model_source === "agent" ? "assembled" : "imported"} model.</b>
           {vehicle.model_assembly && <span className="block text-xs text-muted">{vehicle.model_assembly.summary}{vehicle.model_assembly.warnings.length ? ` Warnings: ${vehicle.model_assembly.warnings.join("; ")}` : ""}</span>} It&apos;s an approximation, not a scan of your car. Keep it, or switch back to the built-in model.
-          <div className="text-xs text-muted">Visitors see a &ldquo;pending review&rdquo; label until you approve it.</div>
+          <div className="text-xs text-muted">Visitors don&apos;t see it until you approve it; they see your photos instead.</div>
         </div>
         <button type="button" className="btn-quiet" onClick={() => decide(false)}>Use built-in model</button>
         <button type="button" className="btn-primary" onClick={() => decide(true)}>Approve model</button>

@@ -27,7 +27,7 @@ const C = "00000000-0000-0000-0000-00000000000c";
 async function setup() {
   const db = new PGlite({ extensions: { pgcrypto } });
   await db.exec(STUBS);
-  for (const f of ["0001_init.sql", "0002_model_agent.sql", "0003_model_library.sql"]) await db.exec(readFileSync(`supabase/migrations/${f}`, "utf8"));
+  for (const f of ["0001_init.sql", "0002_model_agent.sql", "0003_model_library.sql", "0004_build_sheet.sql", "0005_trust_safety.sql"]) await db.exec(readFileSync(`supabase/migrations/${f}`, "utf8"));
   await db.exec(`
     grant usage on schema public, auth, storage to anon, authenticated;
     grant all on all tables in schema public to authenticated; grant select on all tables in schema public to anon;

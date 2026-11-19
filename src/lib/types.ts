@@ -88,6 +88,8 @@ export interface Vehicle {
   model_attribution: string | null;
   model_approved: boolean;
   ai_identification: Record<string, unknown> | null;
+  /** Public build sheet (see lib/build.ts). */
+  build: import("./build").BuildSheet;
   created_at: string;
 }
 
@@ -129,6 +131,8 @@ export interface Modification {
   torque_gain: number | null;
   performance_notes: string | null;
   visual: Partial<ModelConfig>;
+  status: "installed" | "planned";
+  source: "owner" | "photo";
   created_at: string;
 }
 

@@ -2,11 +2,11 @@
 import type { Vehicle } from "@/lib/types";
 
 export type VehicleDraft = Pick<Vehicle,
-  "nickname" | "year" | "make" | "model" | "trim" | "engine" | "horsepower" | "torque" | "transmission" | "drivetrain" |
+  "nickname" | "year" | "make" | "model" | "trim" | "engine" | "horsepower" | "transmission" | "drivetrain" |
   "exterior_color" | "exterior_color_hex" | "interior_color" | "mileage" | "mileage_unit" | "description" | "visibility" | "show_stats_public">;
 
 export const EMPTY_DRAFT: VehicleDraft = {
-  nickname: null, year: null, make: "", model: "", trim: null, engine: null, horsepower: null, torque: null, transmission: null,
+  nickname: null, year: null, make: "", model: "", trim: null, engine: null, horsepower: null, transmission: null,
   drivetrain: null, exterior_color: null, exterior_color_hex: "#9aa0a6", interior_color: null, mileage: null, mileage_unit: "mi",
   description: null, visibility: "public", show_stats_public: true,
 };
@@ -32,8 +32,7 @@ export function VehicleFields({ draft, onChange, aiFlags }: { draft: VehicleDraf
       <div className="sm:col-span-1"><Field ai={!!aiFlags?.has("trim")} label="Trim"><input className="input" value={draft.trim ?? ""} onChange={txt("trim")} /></Field></div>
       <div className="sm:col-span-3"><Field ai={!!aiFlags?.has("nickname")} label="Nickname"><input className="input" placeholder="Optional" value={draft.nickname ?? ""} onChange={txt("nickname")} /></Field></div>
       <div className="sm:col-span-3"><Field ai={!!aiFlags?.has("engine")} label="Engine"><input className="input" placeholder="e.g. 3.0L twin-turbo I6" value={draft.engine ?? ""} onChange={txt("engine")} /></Field></div>
-      <div className="sm:col-span-2"><Field ai={!!aiFlags?.has("horsepower")} label="Horsepower"><input className="input" inputMode="numeric" placeholder="If known" value={draft.horsepower ?? ""} onChange={num("horsepower")} /></Field></div>
-      <div className="sm:col-span-2"><Field ai={!!aiFlags?.has("torque")} label="Torque (lb-ft)"><input className="input" inputMode="numeric" value={draft.torque ?? ""} onChange={num("torque")} /></Field></div>
+      <div className="sm:col-span-4"><Field ai={!!aiFlags?.has("horsepower")} label="Horsepower (now)"><input className="input" inputMode="numeric" placeholder="If known" value={draft.horsepower ?? ""} onChange={num("horsepower")} /></Field></div>
       <div className="sm:col-span-2"><Field ai={!!aiFlags?.has("transmission")} label="Transmission">
         <input className="input" list="tx" value={draft.transmission ?? ""} onChange={txt("transmission")} />
         <datalist id="tx"><option>6-speed manual</option><option>7-speed DCT</option><option>8-speed automatic</option><option>CVT</option><option>Sequential</option></datalist>
