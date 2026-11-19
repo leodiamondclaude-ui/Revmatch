@@ -75,8 +75,9 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       </label>
       {error && <p className="rounded-lg border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad" role="alert">{error}</p>}
       {notice && <p className="rounded-lg border border-ok/40 bg-ok/10 px-3 py-2 text-sm text-ok">{notice}</p>}
+      {mode === "signup" && <p className="text-xs text-muted">By creating an account you agree to the <Link href="/terms" className="text-accent">terms</Link> and <Link href="/privacy" className="text-accent">privacy policy</Link>, and confirm you&apos;re 16 or older.</p>}
       <button className="btn-primary w-full" disabled={busy}>{busy ? "…" : mode === "login" ? "Sign in" : "Create account"}</button>
-      {mode === "login" && <button type="button" onClick={magicLink} className="btn-quiet w-full" disabled={busy}>Email me a sign-in link</button>}
+      {mode === "login" && <div className="flex flex-wrap justify-between gap-2"><button type="button" onClick={magicLink} className="btn-quiet" disabled={busy}>Email me a sign-in link</button><Link href="/forgot" className="btn-quiet">Forgot password?</Link></div>}
       <p className="text-center text-sm text-muted">
         {mode === "login" ? <>New here? <Link className="text-accent" href="/signup">Create an account</Link></> : <>Have an account? <Link className="text-accent" href="/login">Sign in</Link></>}
       </p>

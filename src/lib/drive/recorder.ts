@@ -29,8 +29,14 @@ export class DriveRecorder {
       this.motionG = Math.sqrt(a.x ** 2 + a.y ** 2 + a.z ** 2) / 9.80665;
     }
   };
+  private hiddenSince: number | null = null;
+  /** Seconds the page spent hidden while recording (browsers pause GPS then), so the UI can warn about gaps. */
+  gapSeconds = 0;
   private onVisibility = () => {
-    if (document.visibilityState === "visible" && this.watchId != null) void this.acquireWakeLock();
+    if (this.watchId == null) return;
+    if (document.visibilityState === "hidden") { this.hiddenSince = Date.now(); return; }
+    if (this.hiddenSince != null) { this.gapSeconds += Math.round((Date.now() - this.hiddenSince) / 1000); this.hiddenSince = null; }
+    void this.acquireWakeLock();
   };
   error: string | null = null;
 

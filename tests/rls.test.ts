@@ -70,6 +70,55 @@ test("RLS end to end", async (t) => {
     await fails(as(db, B, `insert into modifications (vehicle_id, owner_id, category, name) values ($1,$2,'wheels','x')`, [pub, B]));
   });
 
+  await t.test("blocks hide content both ways and end follows", async () => {
+    const post = (await as<{ id: string }>(db, B, "insert into posts (author_id, body, visibility) values ($1,'bob public','public') returning id", [B]))[0].id;
+    assert.equal((await as(db, A, "select id from posts where id=$1", [post])).length, 1);
+    await as(db, A, "insert into follows (follower_id, following_id, status) values ($1,$2,'accepted') on conflict do nothing", [A, B]);
+    await as(db, B, "insert into blocks (blocker_id, blocked_id) values ($1,$2)", [B, A]);
+    assert.equal((await as(db, A, "select id from posts where id=$1", [post])).length, 0, "blocked user can't see the blocker's posts");
+    assert.equal((await as(db, A, "select 1 from follows where follower_id=$1 and following_id=$2", [A, B])).length, 0, "block removed the follow");
+    await fails(as(db, A, "insert into follows (follower_id, following_id, status) values ($1,$2,'accepted')", [A, B]));
+    assert.equal((await as(db, A, "select blocker_id from blocks")).length, 0, "blocks are private to the blocker");
+    await as(db, B, "delete from blocks where blocker_id=$1", [B]);
+    assert.equal((await as(db, A, "select id from posts where id=$1", [post])).length, 1, "unblocking restores visibility");
+  });
+
+  await t.test("reports and moderation", async () => {
+    const post = (await as<{ id: string }>(db, B, "insert into posts (author_id, body, visibility) values ($1,'spammy','public') returning id", [B]))[0].id;
+    const rep = (await as<{ id: string }>(db, A, "insert into reports (reporter_id, target_kind, target_id, target_owner_id, reason) values ($1,'post',$2,$3,'spam') returning id", [A, post, B]))[0].id;
+    assert.equal((await as(db, B, "select id from reports")).length, 0, "the reported person can't see reports");
+    await fails(as(db, A, "select public.moderate($1, 'remove')", [rep]));
+    await fails(as(db, C, "update profiles set is_moderator = true where id=$1", [C]));
+    await db.query("update profiles set is_moderator = true where id=$1", [C]); // promoted by an admin directly
+    assert.equal((await as(db, C, "select id from reports")).length, 1, "moderators see reports");
+    await as(db, C, "select public.moderate($1, 'remove_and_suspend')", [rep]);
+    assert.equal((await as(db, A, "select id from posts where id=$1", [post])).length, 0, "removed post is hidden");
+    assert.equal((await as(db, B, "select id from posts where id=$1", [post])).length, 1, "its author still sees it");
+    await fails(as(db, B, "update posts set removed_at = null where id=$1", [post]));
+    await fails(as(db, B, "insert into posts (author_id, body) values ($1,'again')", [B]));
+    await fails(as(db, B, "update profiles set suspended_at = null where id=$1", [B]));
+    await db.query("update profiles set suspended_at = null where id=$1", [B]);
+  });
+
+  await t.test("posting is rate limited", async () => {
+    // 20 posts an hour: the 21st fails
+    await db.query("delete from posts where author_id=$1", [A]);
+    for (let i = 0; i < 20; i++) await as(db, A, "insert into posts (author_id, body) values ($1,'p')", [A]);
+    await fails(as(db, A, "insert into posts (author_id, body) values ($1,'one too many')", [A]));
+    await db.query("delete from posts where author_id=$1", [A]);
+  });
+
+  await t.test("build sheet: private details are owner-only, private service entries hidden", async () => {
+    await as(db, A, "insert into vehicle_private (vehicle_id, owner_id, vin, purchase_price) values ($1,$2,'WVWZZZ1FZ8V000001',30000)", [pub, A]);
+    assert.equal((await as(db, A, "select vin from vehicle_private")).length, 1);
+    assert.equal((await as(db, B, "select vin from vehicle_private")).length, 0, "nobody else reads VIN or price");
+    await fails(as(db, B, "insert into vehicle_private (vehicle_id, owner_id, vin) values ($1,$2,'X')", [pub, B]));
+    await as(db, A, "insert into build_events (vehicle_id, owner_id, title, kind, is_private) values ($1,$2,'Oil change','service',true), ($1,$2,'Best in show','award',false)", [pub, A]);
+    assert.deepEqual((await as<{ title: string }>(db, B, "select title from build_events where vehicle_id=$1", [pub])).map((r) => r.title), ["Best in show"]);
+    await as(db, A, "insert into modifications (vehicle_id, owner_id, category, name, status, source) values ($1,$2,'wheels','Forged wheels','planned','owner')", [pub, A]);
+    await fails(as(db, A, "insert into modifications (vehicle_id, owner_id, category, name, status) values ($1,$2,'wheels','x','maybe')", [pub, A]));
+  });
+
   await t.test("model library: everyone reads ready models, nobody writes", async () => {
     await db.exec(`insert into model_library (key, make, model, generation, year_from, year_to, status) values
       ('volkswagen|eos|1f','Volkswagen','Eos','1F',2007,2016,'ready'), ('ford|f150|14thgen','Ford','F-150','14th gen',2021,2026,'queued')`);

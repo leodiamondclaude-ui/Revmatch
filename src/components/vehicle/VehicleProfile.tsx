@@ -14,6 +14,7 @@ import { Modal } from "@/components/ui/Modal";
 import { CATEGORY_PART, PART_LABEL, VIEWS, type ViewId, STUDIO_CAR_CREDIT } from "@/components/three/parts";
 import type { ViewRequest } from "@/components/three/VehicleViewer";
 import { ProofTab, SpecSheet, StoryPanel } from "@/components/vehicle/BuildShowcase";
+import { ReportButton } from "@/components/social/ReportButton";
 import { ModEditor } from "./ModEditor";
 import { QrCard } from "./QrCard";
 import { LifetimeStats, type PublicStats } from "./LifetimeStats";
@@ -39,7 +40,7 @@ interface Props {
   integrations: Record<string, boolean>;
 }
 
-export function VehicleProfile({ vehicle: v, owner, mods, photos, events, publicStats, drives, isOwner, units, siteUrl }: Props) {
+export function VehicleProfile({ vehicle: v, owner, mods, photos, events, publicStats, drives, isOwner, viewerId, units, siteUrl }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<"mods" | "specs" | "proof" | "photos" | "stats" | "history">("mods");
   const [part, setPart] = useState<string | null>(null);
@@ -110,6 +111,7 @@ export function VehicleProfile({ vehicle: v, owner, mods, photos, events, public
               <button type="button" className="btn-ghost !py-2" onClick={() => setEditMod({ mod: null })}><Plus size={14} /> Mod</button>
             </>}
             <button type="button" className="btn-ghost !py-2" onClick={() => setQr(true)}><QrCode size={14} /> QR</button>
+            {!isOwner && <ReportButton kind="vehicle" targetId={v.id} ownerId={v.owner_id} viewerId={viewerId} />}
           </div>
         </div>
       </header>

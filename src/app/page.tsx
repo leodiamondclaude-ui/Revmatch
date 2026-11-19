@@ -79,7 +79,7 @@ export default async function Landing() {
 
       <footer className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-10 text-xs text-dim sm:flex-row">
         <Logo />
-        <span className="font-mono uppercase tracking-widest">Built for drivers · Data stays yours</span>
+        <span className="flex gap-4 font-mono uppercase tracking-widest"><Link href="/privacy" className="hover:text-ink">Privacy</Link><Link href="/terms" className="hover:text-ink">Terms</Link></span>
       </footer>
     </div>
   );

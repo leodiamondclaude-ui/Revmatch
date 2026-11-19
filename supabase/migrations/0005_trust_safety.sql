@@ -113,14 +113,37 @@ drop policy if exists "posts visible" on public.posts;
 create policy "posts visible" on public.posts for select using (
   auth.uid() = author_id or public.is_moderator(auth.uid())
   or (removed_at is null and public.can_view_post(auth.uid(), author_id, visibility)));
-drop policy if exists "posts moderate" on public.posts;
-create policy "posts moderate" on public.posts for update using (public.is_moderator(auth.uid())) with check (public.is_moderator(auth.uid()));
 drop policy if exists "comments visible" on public.post_comments;
 create policy "comments visible" on public.post_comments for select using (
   (removed_at is null or auth.uid() = author_id or public.is_moderator(auth.uid()))
   and exists (select 1 from public.posts p where p.id = post_id and public.can_view_post(auth.uid(), p.author_id, p.visibility)));
-drop policy if exists "comments moderate" on public.post_comments;
-create policy "comments moderate" on public.post_comments for update using (public.is_moderator(auth.uid())) with check (public.is_moderator(auth.uid()));
+
+-- Moderators act through this one function rather than broad write access.
+create or replace function public.moderate(report uuid, action text) returns void
+language plpgsql security definer set search_path = public as $$
+declare r public.reports;
+begin
+  if not public.is_moderator(auth.uid()) then raise exception 'Moderators only'; end if;
+  if action not in ('remove','suspend','remove_and_suspend','dismiss') then raise exception 'Unknown action'; end if;
+  select * into r from public.reports where id = report;
+  if not found then raise exception 'Report not found'; end if;
+  if action in ('remove','remove_and_suspend') then
+    if r.target_kind = 'post' then update public.posts set removed_at = now() where id = r.target_id;
+    elsif r.target_kind = 'comment' then update public.post_comments set removed_at = now() where id = r.target_id;
+    elsif r.target_kind = 'vehicle' then update public.vehicles set visibility = 'private' where id = r.target_id;
+    elsif r.target_kind = 'photo' then delete from public.vehicle_photos where id = r.target_id;
+    elsif r.target_kind = 'profile' then update public.profiles set bio = null, avatar_url = null, display_name = null, location = null where id = r.target_id;
+    end if;
+  end if;
+  if action in ('suspend','remove_and_suspend') and r.target_owner_id is not null then
+    update public.profiles set suspended_at = now() where id = r.target_owner_id and not is_moderator;
+  end if;
+  -- Resolve every open report about the same thing.
+  update public.reports set status = case when action = 'dismiss' then 'dismissed' else 'actioned' end, resolved_by = auth.uid(), resolved_at = now()
+    where target_kind = r.target_kind and target_id = r.target_id and status = 'open';
+end $$;
+revoke all on function public.moderate(uuid, text) from public, anon;
+grant execute on function public.moderate(uuid, text) to authenticated;
 
 -- Suspended accounts can't post, comment or like.
 create or replace function public.not_suspended(uid uuid) returns boolean
@@ -169,3 +192,21 @@ begin
 end $$;
 revoke all on function public.delete_my_account() from public, anon;
 grant execute on function public.delete_my_account() to authenticated;
+
+-- Owners can't promote themselves, lift their own suspension, or un-remove moderated posts.
+create or replace function public.guard_moderation_fields() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if current_setting('role', true) in ('authenticated', 'anon') and not public.is_moderator(auth.uid()) then
+    if tg_table_name = 'profiles' and (new.is_moderator is distinct from old.is_moderator or new.suspended_at is distinct from old.suspended_at) then
+      raise exception 'Not allowed';
+    end if;
+    if tg_table_name in ('posts','post_comments') and new.removed_at is distinct from old.removed_at then raise exception 'Not allowed'; end if;
+  end if;
+  return new;
+end $$;
+drop trigger if exists profiles_guard_mod on public.profiles;
+create trigger profiles_guard_mod before update on public.profiles for each row execute function public.guard_moderation_fields();
+drop trigger if exists posts_guard_mod on public.posts;
+create trigger posts_guard_mod before update on public.posts for each row execute function public.guard_moderation_fields();
+drop trigger if exists comments_guard_mod on public.post_comments;
+create trigger comments_guard_mod before update on public.post_comments for each row execute function public.guard_moderation_fields();

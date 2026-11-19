@@ -11,6 +11,8 @@ export interface Profile {
   accent_mode: "vehicle" | "custom";
   accent_color: string;
   primary_vehicle_id: string | null;
+  is_moderator?: boolean;
+  suspended_at?: string | null;
   created_at: string;
 }
 

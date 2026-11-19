@@ -29,7 +29,7 @@ export async function Shell({ children, accent: override }: { children: React.Re
     <AccentScope accent={a} className="min-h-dvh">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-line bg-surface/60 backdrop-blur lg:flex">
         <div className="flex h-16 items-center px-5"><Logo href="/dashboard" /></div>
-        <NavLinks variant="rail" />
+        <NavLinks variant="rail" moderator={!!profile.is_moderator} />
         <Link href={`/u/${profile.username}`} className="m-3 flex items-center gap-3 rounded-xl border border-line p-3 transition hover:border-accent/50">
           <Avatar url={profile.avatar_url} name={profile.display_name ?? profile.username} size={36} />
           <div className="min-w-0">

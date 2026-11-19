@@ -9,6 +9,7 @@ import { distance, distanceUnit, duration, relTime, speed, speedUnit, type Units
 import type { Post, Profile, Vehicle } from "@/lib/types";
 import { Avatar } from "@/components/ui/Avatar";
 import { AccentScope } from "@/components/ui/AccentScope";
+import { ReportButton } from "@/components/social/ReportButton";
 
 export type FeedPost = Post & {
   author: Pick<Profile, "id" | "username" | "display_name" | "avatar_url">;
@@ -27,6 +28,7 @@ export function PostCard({ post, viewerId, units }: { post: FeedPost; viewerId: 
   const [count, setCount] = useState(post.comments);
   const [text, setText] = useState("");
   const [gone, setGone] = useState(false);
+  const [commentErr, setCommentErr] = useState<string | null>(null);
   const supabase = useSupabase();
   const accent = accentFromPaint(post.vehicle?.exterior_color_hex);
   const k = KIND[post.kind];
@@ -52,7 +54,8 @@ export function PostCard({ post, viewerId, units }: { post: FeedPost; viewerId: 
     if (!text.trim() || !viewerId) return;
     const { data, error } = await supabase.from("post_comments").insert({ post_id: post.id, author_id: viewerId, body: text.trim() })
       .select("id, body, created_at, author_id, author:profiles!post_comments_author_id_fkey(username, avatar_url, display_name)").single();
-    if (!error && data) { setComments((c) => [...(c ?? []), data as unknown as Comment]); setCount((n) => n + 1); setText(""); }
+    if (error) { setCommentErr(error.message); return; }
+    if (data) { setComments((c) => [...(c ?? []), data as unknown as Comment]); setCount((n) => n + 1); setText(""); setCommentErr(null); }
   }
   async function delComment(id: string) {
     await supabase.from("post_comments").delete().eq("id", id);
@@ -78,7 +81,8 @@ export function PostCard({ post, viewerId, units }: { post: FeedPost; viewerId: 
             {post.vehicle && <Link href={`/v/${post.vehicle.slug}`} className="text-xs text-accent hover:underline">{post.vehicle.nickname || `${post.vehicle.year ?? ""} ${post.vehicle.make} ${post.vehicle.model}`}</Link>}
           </div>
           {k && <span className="chip-accent hidden sm:inline-flex"><k.icon size={11} /> {k.label}</span>}
-          {viewerId === post.author_id && <button type="button" onClick={delPost} className="btn-quiet !p-1.5" aria-label="Delete post"><Trash2 size={14} /></button>}
+          {viewerId === post.author_id ? <button type="button" onClick={delPost} className="btn-quiet !p-1.5" aria-label="Delete post"><Trash2 size={14} /></button>
+            : <ReportButton kind="post" targetId={post.id} ownerId={post.author_id} viewerId={viewerId} compact />}
         </header>
         {post.body && <p className="whitespace-pre-line px-4 pb-3">{post.body}</p>}
         {post.kind === "drive" && m.distance_m != null && (
@@ -109,6 +113,7 @@ export function PostCard({ post, viewerId, units }: { post: FeedPost; viewerId: 
                 <Avatar url={c.author.avatar_url} name={c.author.display_name ?? c.author.username} size={28} />
                 <div className="min-w-0 flex-1"><Link href={`/u/${c.author.username}`} className="font-semibold">@{c.author.username}</Link> <span className="text-xs text-dim">{relTime(c.created_at)}</span><p className="text-ink/90">{c.body}</p></div>
                 {(viewerId === c.author_id || viewerId === post.author_id) && <button type="button" onClick={() => delComment(c.id)} className="text-dim hover:text-bad" aria-label="Delete comment"><Trash2 size={13} /></button>}
+                {viewerId !== c.author_id && <ReportButton kind="comment" targetId={c.id} ownerId={c.author_id} viewerId={viewerId} compact />}
               </div>
             ))}
             {comments?.length === 0 && <p className="text-sm text-muted">No comments yet.</p>}
@@ -118,6 +123,7 @@ export function PostCard({ post, viewerId, units }: { post: FeedPost; viewerId: 
                 <button className="btn-primary !px-3" aria-label="Send"><Send size={16} /></button>
               </form>
             )}
+            {commentErr && <p className="text-xs text-bad" role="alert">{commentErr}</p>}
           </div>
         )}
       </article>

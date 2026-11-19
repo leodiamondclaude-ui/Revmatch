@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Car, Gauge, LayoutDashboard, Route, Settings, Users } from "lucide-react";
+import { Activity, Car, Gauge, LayoutDashboard, Route, Settings, Shield, Users } from "lucide-react";
 
 const ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, bar: true },
@@ -13,13 +13,13 @@ const ITEMS = [
   { href: "/settings", label: "Settings", icon: Settings, bar: false },
 ];
 
-export function NavLinks({ variant }: { variant: "rail" | "bar" }) {
+export function NavLinks({ variant, moderator = false }: { variant: "rail" | "bar"; moderator?: boolean }) {
   const path = usePathname();
   const active = (h: string) => path === h || path.startsWith(h + "/");
   if (variant === "rail") {
     return (
       <nav className="flex-1 space-y-1 px-3 py-2">
-        {ITEMS.map(({ href, label, icon: Icon }) => (
+        {[...ITEMS, ...(moderator ? [{ href: "/moderation", label: "Moderation", icon: Shield, bar: false }] : [])].map(({ href, label, icon: Icon }) => (
           <Link key={href} href={href} data-on={active(href)}
             className="group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted transition hover:bg-surface-2 hover:text-ink data-[on=true]:bg-surface-2 data-[on=true]:text-ink">
             <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r bg-accent opacity-0 shadow-[0_0_12px_var(--accent)] transition group-data-[on=true]:opacity-100" />

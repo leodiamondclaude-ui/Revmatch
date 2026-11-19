@@ -10,6 +10,8 @@ import { AccentScope } from "@/components/ui/AccentScope";
 import { VehicleCard } from "@/components/garage/VehicleCard";
 import { PostCard } from "@/components/social/PostCard";
 import { RelationButtons, type Relation } from "@/components/social/RelationButtons";
+import { BlockButton } from "@/components/social/BlockButton";
+import { ReportButton } from "@/components/social/ReportButton";
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }) {
   return { title: `@${(await params).username}` };
@@ -31,13 +33,15 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
     me && !isMe ? Promise.all([
       supabase!.from("follows").select("status").eq("follower_id", me).eq("following_id", p.id).maybeSingle(),
       supabase!.from("friendships").select("requester_id, status").or(`and(requester_id.eq.${me},addressee_id.eq.${p.id}),and(requester_id.eq.${p.id},addressee_id.eq.${me})`).maybeSingle(),
+      supabase!.from("blocks").select("blocked_id").eq("blocker_id", me).eq("blocked_id", p.id).maybeSingle(),
     ]) : Promise.resolve(null),
   ]);
   const relation: Relation | null = rel ? {
     following: (rel[0].data?.status as Relation["following"]) ?? "none",
     friend: !rel[1].data ? "none" : rel[1].data.status === "accepted" ? "accepted" : rel[1].data.requester_id === me ? "outgoing" : "incoming",
   } : null;
-  const visible = !!canView;
+  const iBlocked = !!rel?.[2].data;
+  const visible = !!canView && !iBlocked;
   const [{ data: vehicles }, posts] = visible ? await Promise.all([
     supabase!.from("vehicles").select("*, modifications(count)").eq("owner_id", p.id).order("created_at"),
     loadPosts(supabase!, { authorIds: [p.id], limit: 20 }),
@@ -69,7 +73,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
           </div>
           <div className="flex flex-col gap-2">
             {isMe && <Link href="/settings" className="btn-ghost">Edit profile</Link>}
-            {relation && me && <RelationButtons me={me} target={p.id} targetPrivate={p.is_private} rel={relation} />}
+            {relation && me && !iBlocked && <RelationButtons me={me} target={p.id} targetPrivate={p.is_private} rel={relation} />}
+            {me && !isMe && <div className="flex flex-wrap gap-1"><BlockButton me={me} target={p.id} username={p.username} blocked={iBlocked} /><ReportButton kind="profile" targetId={p.id} ownerId={p.id} viewerId={me} /></div>}
             {!me && <Link href={`/login?next=/u/${p.username}`} className="btn-primary">Sign in to follow</Link>}
           </div>
         </div>
@@ -78,8 +83,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
       {!visible ? (
         <div className="panel carbon mt-6 p-10 text-center">
           <Lock className="mx-auto text-accent" />
-          <h2 className="h-display mt-3 text-2xl">Private garage</h2>
-          <p className="mt-1 text-sm text-muted">Follow @{p.username} or become friends to see their vehicles and activity.</p>
+          <h2 className="h-display mt-3 text-2xl">{iBlocked ? "You blocked this account" : "Private garage"}</h2>
+          <p className="mt-1 text-sm text-muted">{iBlocked ? "Unblock them to see their cars and activity again." : `Follow @${p.username} or become friends to see their vehicles and activity.`}</p>
         </div>
       ) : (
         <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_380px]">

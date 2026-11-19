@@ -39,6 +39,8 @@ export function DriveConsole({ userId, vehicles, primaryId, settings }: { userId
   const flushed = useRef(0);
   const elm = useRef<Elm327 | null>(null);
   const obdLoop = useRef(false);
+  const [isIOS, setIsIOS] = useState(false);
+  useEffect(() => { setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)); }, []);
   const detector = useRef<TripDetector | null>(null);
   const supabase = useSupabase();
   const vehicle = vehicles.find((v) => v.id === vehicleId);
@@ -229,7 +231,8 @@ export function DriveConsole({ userId, vehicles, primaryId, settings }: { userId
             {phase === "recording" && <button type="button" className="btn w-full !py-5 !text-lg bg-white text-black hover:bg-white/90" onClick={stop}><Square size={18} fill="currentColor" /> Stop drive</button>}
             {phase === "saving" && <button type="button" className="btn-primary w-full !py-5" disabled><Loader2 className="animate-spin" /> Analysing drive…</button>}
           </div>
-          {phase === "recording" && <p className="mt-3 text-center text-xs text-muted">Keep this screen open. Browsers pause GPS when the tab is in the background or the phone is locked{"wakeLock" in (typeof navigator !== "undefined" ? navigator : {}) ? " (screen wake lock is on)" : ""}.</p>}
+          {phase === "recording" && <p className="mt-3 text-center text-xs text-muted">Keep this screen open. Browsers pause GPS when the tab is in the background or the phone is locked{"wakeLock" in (typeof navigator !== "undefined" ? navigator : {}) ? " (the screen is kept awake while recording)" : ""}.</p>}
+          {phase === "recording" && (recorder.current?.gapSeconds ?? 0) >= 5 && <p className="mt-2 rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-center text-xs text-warn" role="status">Recording paused for about {Math.max(1, Math.round((recorder.current?.gapSeconds ?? 0) / 60))} min while the screen was off or another app was open. That part of the drive will have a gap.</p>}
         </section>
 
         <div className="space-y-5">
@@ -257,10 +260,10 @@ export function DriveConsole({ userId, vehicles, primaryId, settings }: { userId
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="font-semibold">OBD-II adapter <span className="chip ml-1">optional</span></div>
-                <div className="text-xs text-muted">{obd.state === "on" ? `${obd.name} · ${obd.msg}` : "BLE ELM327-compatible adapters via Web Bluetooth (Chrome or Edge on Android or desktop)."}</div>
+                <div className="text-xs text-muted">{obd.state === "on" ? `${obd.name} · ${obd.msg}` : isIOS ? "iPhone and iPad browsers can't connect to Bluetooth adapters, so OBD-II isn't available here. GPS recording still works." : "BLE ELM327-compatible adapters via Web Bluetooth (Chrome or Edge on Android or desktop)."}</div>
               </div>
               {obd.state === "on" ? <button type="button" className="btn-ghost" onClick={disconnectObd}><BluetoothOff size={16} /> Disconnect</button>
-                : <button type="button" className="btn-ghost" onClick={connectObd} disabled={obd.state === "connecting"}>{obd.state === "connecting" ? <Loader2 size={16} className="animate-spin" /> : <Bluetooth size={16} />} Connect</button>}
+                : <button type="button" className="btn-ghost" onClick={connectObd} disabled={obd.state === "connecting" || isIOS}>{obd.state === "connecting" ? <Loader2 size={16} className="animate-spin" /> : <Bluetooth size={16} />} Connect</button>}
             </div>
             {obd.state === "error" && <p className="mt-2 text-xs text-warn">{obd.msg}</p>}
             {obd.state === "on" && (
