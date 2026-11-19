@@ -17,7 +17,7 @@ export default async function Garage() {
       <SectionTitle kicker={`${vehicles.length} vehicle${vehicles.length === 1 ? "" : "s"}`} title="Your Garage"
         action={<Link href="/garage/new" className="btn-primary"><Plus size={16} /> Add vehicle</Link>} />
       {vehicles.length === 0 ? (
-        <Empty title="Empty bay" body="Add your first car. Upload three photos, review what the AI identifies, and get an interactive 3D build sheet." action={<Link href="/garage/new" className="btn-primary">Add vehicle</Link>} />
+        <Empty title="Empty bay" body="Add your first car: four photos, a quick check of what we spotted, and your build page is live." action={<Link href="/garage/new" className="btn-primary">Add vehicle</Link>} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {vehicles.map((v, i) => (

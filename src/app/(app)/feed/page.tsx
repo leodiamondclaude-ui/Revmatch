@@ -39,7 +39,7 @@ export default async function Feed({ searchParams }: { searchParams: Promise<{ t
           </section>
         )}
         {posts.length === 0 ? (
-          <Empty title={tab === "following" ? "Quiet paddock" : "Nothing yet"} body={tab === "following" ? "Follow drivers or add friends to fill your feed, or check Discover." : "Be the first to post a build."}
+          <Empty title={tab === "following" ? "Quiet paddock" : "Nothing yet"} body={tab === "following" ? "Follow some builds or invite your friends to fill this up. Discover shows what everyone else is posting." : "Be the first to post a build."}
             action={tab === "following" ? <Link href="/feed?tab=discover" className="btn-primary">Discover builds</Link> : undefined} />
         ) : posts.map((p) => <PostCard key={p.id} post={p} viewerId={user.id} units={units} />)}
       </div>

@@ -6,7 +6,7 @@ import type { BodyStyle, ModelConfig } from "@/lib/types";
 
 const VehicleViewer = dynamic(() => import("@/components/three/VehicleViewer"), {
   ssr: false,
-  loading: () => <div className="grid h-full place-items-center font-mono text-xs tracking-widest text-muted">INITIALISING RENDERER…</div>,
+  loading: () => <div className="grid h-full place-items-center font-mono text-xs tracking-widest text-muted">LOADING 3D…</div>,
 });
 
 const BUILDS: { name: string; style: BodyStyle; config: ModelConfig }[] = [

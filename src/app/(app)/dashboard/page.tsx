@@ -46,7 +46,7 @@ export default async function Dashboard() {
         <Link href="/garage/new" className="panel carbon flex flex-col items-center gap-3 p-12 text-center transition hover:border-accent/50">
           <Plus className="text-accent" size={32} />
           <div className="h-display text-2xl">Add your first car</div>
-          <p className="max-w-sm text-sm text-muted">Three photos is all it takes. The dashboard picks up your car&apos;s colour once it&apos;s added.</p>
+          <p className="max-w-sm text-sm text-muted">Four photos is all it takes. Once your car&apos;s in, the whole app picks up its paint colour.</p>
         </Link>
       )}
 

@@ -7,8 +7,8 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: { default: "RevMatch — Digital Garage & Drive Telemetry", template: "%s · RevMatch" },
-  description: "Showcase your build in 3D, log every modification, and record real drive telemetry from your phone.",
+  title: { default: "RevMatch: show off the whole build", template: "%s · RevMatch" },
+  description: "Four photos and RevMatch drafts your spec sheet. Add your mods, log drives on your phone, and share your build with a QR code.",
 };
 export const viewport: Viewport = { themeColor: "#07080a", width: "device-width", initialScale: 1, viewportFit: "cover" };
 
